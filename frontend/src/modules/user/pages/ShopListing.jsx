@@ -16,9 +16,11 @@ const defaultProviders = [
 
 import API from "@/lib/api";
 import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 const ShopListing = () => {
   const navigate = useNavigate();
+  const { userLocation } = useAuth();
   const [searchParams] = useSearchParams();
   const category = searchParams.get("category") || "";
   const isEmergency = searchParams.get("emergency") === "true";
@@ -34,10 +36,23 @@ const ShopListing = () => {
   const fetchProviders = async () => {
     setLoading(true);
     try {
-      const { data } = await API.get(`/public/providers`, {
-        params: { category, search: searchQuery }
-      });
-      setProviders(data);
+      const params = { category, search: searchQuery };
+      if (userLocation) {
+        params.lat = userLocation.lat;
+        params.lng = userLocation.lng;
+        params.radius = 15;
+      }
+      let { data } = await API.get(`/public/providers`, { params });
+
+      // Fallback if no local providers found
+      if (data.length === 0 && userLocation) {
+        const { data: allData } = await API.get(`/public/providers`, {
+          params: { category, search: searchQuery }
+        });
+        setProviders(allData);
+      } else {
+        setProviders(data);
+      }
     } catch (error) {
       console.error("Error fetching providers:", error);
     } finally {

@@ -1,6 +1,7 @@
 const Provider = require('../models/Provider');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const Setting = require('../models/Setting');
 
 // @desc    Get all providers for admin
 // @route   GET /api/admin/providers
@@ -159,7 +160,8 @@ const deleteCategory = async (req, res) => {
 // @access  Private/Admin
 const getUsers = async (req, res) => {
     try {
-        const users = await User.find({ role: 'user' }).select('-password').sort({ createdAt: -1 });
+        // Correcting the role factor: default role in User model is 'customer'
+        const users = await User.find({ role: 'customer' }).select('-password').sort({ createdAt: -1 });
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -204,6 +206,18 @@ const deleteBanner = async (req, res) => {
     }
 };
 
+// @desc    Update banner
+// @route   PUT /api/admin/banners/:id
+// @access  Private/Admin
+const updateBanner = async (req, res) => {
+    try {
+        const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(banner);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Toggle banner status
 // @route   PATCH /api/admin/banners/:id/status
 // @access  Private/Admin
@@ -220,6 +234,339 @@ const toggleBannerStatus = async (req, res) => {
     }
 };
 
+// @desc    Get Emergency Dashboard Data
+// @route   GET /api/admin/emergency
+// @access  Private/Admin
+const getEmergencyData = async (req, res) => {
+    try {
+        const incomingSOS = await Booking.countDocuments({ status: 'pending' }); // Fallback to all pending if no SOS flag
+        const activeResponders = await Provider.countDocuments({ status: 'verified', isOnline: true });
+
+        const sosQueue = await Booking.find({ status: 'pending' })
+            .populate('userId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(5);
+
+        const responderStatus = await Provider.find({ status: 'verified' })
+            .select('shopName address isOnline businessType')
+            .limit(5);
+
+        res.json({
+            incomingSOS,
+            activeResponders,
+            sosQueue,
+            responderStatus
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Broadcast SOS to all active providers
+// @route   POST /api/admin/emergency/broadcast
+// @access  Private/Admin
+const broadcastEmergency = async (req, res) => {
+    try {
+        const { message } = req.body;
+        // Logic to notify providers (via socket or push notification)
+        // For now, we simulate the broadcast success
+        const activeRespondersCount = await Provider.countDocuments({ status: 'verified', isOnline: true });
+
+        res.json({
+            success: true,
+            message: `Emergency broadcast sent to ${activeRespondersCount} active responders.`,
+            timestamp: new Date()
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get 99 Card Management Data
+// @route   GET /api/admin/99cards
+// @access  Private/Admin
+const get99CardData = async (req, res) => {
+    try {
+        const totalSales = await Provider.countDocuments();
+        const activeSubscribers = await Provider.countDocuments({ status: 'verified' });
+        const recentActivations = await Provider.find()
+            .select('ownerName shopName joinedDate referralCode employeeCode commissionFreeBookings')
+            .sort({ joinedDate: -1 })
+            .limit(10);
+
+        res.json({
+            totalSales,
+            activeSubscribers,
+            totalRevenue: totalSales * 99,
+            recentActivations
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get Feedback/Review Data
+// @route   GET /api/admin/feedback
+// @access  Private/Admin
+const getFeedbackData = async (req, res) => {
+    try {
+        const reviews = await Booking.find({ rating: { $gt: 0 } })
+            .populate('userId', 'name')
+            .populate('providerId', 'shopName')
+            .sort({ createdAt: -1 });
+
+        // Transform for frontend
+        const mappedReviews = reviews.map(r => ({
+            id: r._id,
+            author: r.userId?.name || 'Customer',
+            role: 'user', // Default to user for now as schema supports one rating
+            rating: r.rating,
+            date: new Date(r.createdAt).toISOString().split('T')[0],
+            comment: r.comment || 'No comment provided.',
+            tags: r.rating >= 4 ? ['Good Service'] : ['Needs Attention'],
+            provider: r.providerId?.shopName || 'Provider',
+            acknowledged: false // This could be stored in DB later if needed
+        }));
+
+        res.json(mappedReviews);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get Activity Logs
+// @route   GET /api/admin/activity
+// @access  Private/Admin
+const getActivityLogs = async (req, res) => {
+    try {
+        const recentProviders = await Provider.find().sort({ joinedDate: -1 }).limit(10);
+        const recentBookings = await Booking.find().sort({ createdAt: -1 }).limit(10);
+
+        const providerLogs = recentProviders.map(p => ({
+            type: 'approval',
+            action: `New Provider '${p.shopName}' reached out`,
+            user: p.ownerName,
+            time: p.joinedDate
+        }));
+
+        const bookingLogs = recentBookings.map(b => ({
+            type: 'login',
+            action: `Booking for ${b.serviceName} was placed`,
+            user: 'System',
+            time: b.createdAt
+        }));
+
+        const allLogs = [...providerLogs, ...bookingLogs].sort((a, b) => new Date(b.time) - new Date(a.time));
+        res.json(allLogs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get Global Settings
+// @route   GET /api/admin/settings
+// @access  Private/Admin
+const getSettings = async (req, res) => {
+    try {
+        const settings = await Setting.find();
+        const config = {};
+        settings.forEach(s => config[s.key] = s.value);
+
+        // Return with defaults if first time
+        res.json({
+            commissionRate: config.commissionRate || 10,
+            minBookingAmount: config.minBookingAmount || 199,
+            emergencyEnabled: config.emergencyEnabled !== undefined ? config.emergencyEnabled : true,
+            autoAssign: config.autoAssign !== undefined ? config.autoAssign : true,
+            vendorCardEnabled: config.vendorCardEnabled !== undefined ? config.vendorCardEnabled : true,
+            vendorCardPrice: config.vendorCardPrice || 99,
+            terms: config.terms || "Standard Terms",
+            privacy: config.privacy || "Standard Privacy",
+            cancellation: config.cancellation || "Standard Cancellation",
+            adminProfile: {
+                name: req.user.name,
+                email: req.user.email,
+                mobile: req.user.mobile
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Update Global Settings
+// @route   POST /api/admin/settings
+// @access  Private/Admin
+const updateSettings = async (req, res) => {
+    try {
+        const { key, value } = req.body;
+        await Setting.findOneAndUpdate(
+            { key },
+            { value, updatedAt: Date.now() },
+            { upsert: true, new: true }
+        );
+        res.json({ success: true, message: `${key} updated` });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Update Admin Profile
+// @route   POST /api/admin/profile
+// @access  Private/Admin
+const updateAdminProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (user) {
+            user.name = req.body.name || user.name;
+            user.email = req.body.email || user.email;
+            user.mobile = req.body.mobile || user.mobile;
+            await user.save();
+            res.json({ success: true, message: "Profile updated" });
+        } else {
+            res.status(404).json({ message: "Admin not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+const Promotion = require('../models/Promotion');
+
+// @desc    Get all promotions
+// @route   GET /api/admin/promotions
+// @access  Private/Admin
+async function getPromotions(req, res) {
+    try {
+        const promotions = await Promotion.find().sort({ createdAt: -1 });
+        res.json(promotions);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Create a promotion
+// @route   POST /api/admin/promotions
+// @access  Private/Admin
+async function createPromotion(req, res) {
+    try {
+        const { title, promoCode, description } = req.body;
+        const exists = await Promotion.findOne({ promoCode: promoCode.toUpperCase() });
+        if (exists) return res.status(400).json({ message: 'Promo code already exists' });
+
+        const promotion = await Promotion.create({
+            title,
+            promoCode: promoCode.toUpperCase(),
+            description
+        });
+        res.status(201).json(promotion);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Delete a promotion
+// @route   DELETE /api/admin/promotions/:id
+// @access  Private/Admin
+async function deletePromotion(req, res) {
+    try {
+        await Promotion.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Promotion removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const Zone = require('../models/Zone');
+
+// @desc    Get all zones
+// @route   GET /api/admin/zones
+// @access  Private/Admin
+async function getZones(req, res) {
+    try {
+        const zones = await Zone.find().sort({ createdAt: -1 });
+        res.json(zones);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Add new zone
+// @route   POST /api/admin/zones
+// @access  Private/Admin
+async function addZone(req, res) {
+    try {
+        const zone = await Zone.create(req.body);
+        res.status(201).json(zone);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Delete zone
+// @route   DELETE /api/admin/zones/:id
+// @access  Private/Admin
+async function deleteZone(req, res) {
+    try {
+        await Zone.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Zone removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const Employee = require('../models/Employee');
+
+// @desc    Get all employees
+// @route   GET /api/admin/employees
+// @access  Private/Admin
+async function getEmployees(req, res) {
+    try {
+        const employees = await Employee.find().sort({ createdAt: -1 });
+        res.json(employees);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Add new employee
+// @route   POST /api/admin/employees
+// @access  Private/Admin
+async function addEmployee(req, res) {
+    try {
+        const { name, email, mobile, password, registrationCommission } = req.body;
+
+        // Generate Employee ID (e.g., EMP1001)
+        const count = await Employee.countDocuments();
+        const employeeId = `EMP${1000 + count + 1}`;
+
+        const employee = await Employee.create({
+            name,
+            email,
+            mobile,
+            password,
+            employeeId,
+            registrationCommission
+        });
+        res.status(201).json(employee);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Delete employee
+// @route   DELETE /api/admin/employees/:id
+// @access  Private/Admin
+async function deleteEmployee(req, res) {
+    try {
+        await Employee.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Employee removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
 module.exports = {
     getProviders,
     updateProviderStatus,
@@ -232,6 +579,25 @@ module.exports = {
     getUsers,
     getBanners,
     addBanner,
+    updateBanner,
     deleteBanner,
-    toggleBannerStatus
+    toggleBannerStatus,
+    getEmergencyData,
+    broadcastEmergency,
+    get99CardData,
+    getFeedbackData,
+    getActivityLogs,
+    getSettings,
+    updateSettings,
+    updateAdminProfile,
+    getPromotions,
+    createPromotion,
+    deletePromotion,
+    getZones,
+    addZone,
+    deleteZone,
+    getEmployees,
+    addEmployee,
+    deleteEmployee
 };
+

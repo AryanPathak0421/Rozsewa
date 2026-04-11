@@ -10,13 +10,25 @@ const Provider99Card = () => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const vendorCode = user?.vendorCode || "RSVND----";
-  const commissionRemaining = user?.commissionFreeBookings || 0;
+  const commissionRemaining = user?.freeServicesLeft || 0;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(vendorCode);
     setCopied(true);
     toast({ title: "Code Copied!", description: "Vendor referral code copied to clipboard." });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Join RozSewa as a Provider!',
+        text: `Register on RozSewa using my referral code ${vendorCode} and get 3 commission-free bookings!`,
+        url: window.location.origin + '/provider/register',
+      });
+    } else {
+      handleCopy();
+    }
   };
 
   return (
@@ -72,7 +84,7 @@ const Provider99Card = () => {
                 <button onClick={handleCopy} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-xs font-bold text-foreground shadow-sm hover:bg-muted transition">
                   {copied ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
                 </button>
-                <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition">
+                <button onClick={handleShare} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition">
                   <Share2 className="h-4 w-4" /> Share
                 </button>
               </div>

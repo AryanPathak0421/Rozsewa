@@ -8,6 +8,7 @@ import EmergencyButton from "@/modules/user/components/EmergencyButton";
 import SearchBar from "@/modules/user/components/SearchBar";
 import CategoryGrid from "@/modules/user/components/CategoryGrid";
 import ServiceCard from "@/modules/user/components/ServiceCard";
+import { useAuth } from "@/context/AuthContext";
 import API from "@/lib/api";
 
 const defaultBanners = [
@@ -22,6 +23,7 @@ const defaultFeatured = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { userLocation, detectLocation } = useAuth();
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [banners, setBanners] = useState([]);
@@ -29,19 +31,45 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchHomeData();
+    const init = async () => {
+      if (!userLocation) {
+        try {
+          await detectLocation();
+        } catch (err) {
+          console.log("Location access denied or failed");
+        }
+      }
+    };
+    init();
   }, []);
+
+  useEffect(() => {
+    fetchHomeData();
+  }, [userLocation]);
 
   const fetchHomeData = async () => {
     setLoading(true);
     try {
+      const providersEndpoint = userLocation
+        ? `/public/featured-providers?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=15`
+        : "/public/featured-providers";
+
       const [bannersRes, providersRes] = await Promise.all([
         API.get("/public/banners"),
-        API.get("/public/featured-providers")
+        API.get(providersEndpoint)
       ]);
-      setBanners(bannersRes.data.length > 0 ? bannersRes.data : defaultBanners);
 
-      const mappedProviders = providersRes.data.map(p => ({
+      // Set banners from response
+      setBanners(bannersRes.data);
+
+      let providersData = providersRes.data;
+      // If no providers in 15km radius, fetch all verified providers as fallback
+      if (providersData.length === 0 && userLocation) {
+        const allRes = await API.get("/public/featured-providers");
+        providersData = allRes.data;
+      }
+
+      const mappedProviders = providersData.map(p => ({
         id: p._id,
         name: p.shopName || p.name,
         category: p.vendorType?.name || "Service",
@@ -82,47 +110,51 @@ const Index = () => {
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-8">
 
         {/* Dynamic Banners Slider */}
-        <section className="relative h-56 sm:h-72 lg:h-80 w-full overflow-hidden rounded-[40px] bg-muted shadow-2xl group border-8 border-white">
-          <AnimatePresence mode="wait">
-            {!loading ? (
-              <motion.div key={currentBanner} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1 }} className="absolute inset-0">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
-                <img src={banners[currentBanner].imageUrl || banners[currentBanner].image} alt={banners[currentBanner].title} className="h-full w-full object-cover" />
+        {(banners.length > 0 || loading) && (
+          <section className="relative h-56 sm:h-72 lg:h-80 w-full overflow-hidden rounded-[40px] bg-muted shadow-2xl group border-8 border-white">
+            <AnimatePresence mode="wait">
+              {!loading ? (
+                banners.length > 0 ? (
+                  <motion.div key={currentBanner} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1 }} className="absolute inset-0">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
+                    <img src={banners[currentBanner].imageUrl || banners[currentBanner].image} alt={banners[currentBanner].title} className="h-full w-full object-cover" />
 
-                <div className="absolute bottom-0 left-0 right-0 z-20 p-8 sm:p-12 text-left">
-                  <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-                    <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2 leading-tight italic">
-                      {banners[currentBanner].title}
-                    </h2>
-                    <p className="text-sm sm:text-base font-bold text-white/70 mb-6 max-w-lg line-clamp-2">
-                      {banners[currentBanner].description || banners[currentBanner].subtitle}
-                    </p>
-                    {banners[currentBanner]?.ctaText && (
-                      <button
-                        onClick={() => navigate(banners[currentBanner].ctaLink || banners[currentBanner].link || "/shops")}
-                        className="rounded-2xl bg-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-black hover:bg-emerald-500 hover:text-white transition-all shadow-xl active:scale-95 flex items-center gap-3 w-fit"
-                      >
-                        {banners[currentBanner].ctaText} <ArrowRight className="h-4 w-4" />
-                      </button>
-                    )}
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-8 sm:p-12 text-left">
+                      <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+                        <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2 leading-tight italic">
+                          {banners[currentBanner].title}
+                        </h2>
+                        <p className="text-sm sm:text-base font-bold text-white/70 mb-6 max-w-lg line-clamp-2">
+                          {banners[currentBanner].description || banners[currentBanner].subtitle}
+                        </p>
+                        {banners[currentBanner]?.ctaText && (
+                          <button
+                            onClick={() => navigate(banners[currentBanner].ctaLink || banners[currentBanner].link || "/shops")}
+                            className="rounded-2xl bg-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] text-black hover:bg-emerald-500 hover:text-white transition-all shadow-xl active:scale-95 flex items-center gap-3 w-fit"
+                          >
+                            {banners[currentBanner].ctaText} <ArrowRight className="h-4 w-4" />
+                          </button>
+                        )}
+                      </motion.div>
+                    </div>
                   </motion.div>
+                ) : null
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                  <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
                 </div>
-              </motion.div>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+              )}
+            </AnimatePresence>
+
+            {banners.length > 1 && (
+              <div className="absolute bottom-10 right-10 z-30 flex gap-2">
+                {banners.map((_, i) => (
+                  <button key={i} onClick={() => setCurrentBanner(i)} className={`h-1.5 rounded-full transition-all ${currentBanner === i ? "w-8 bg-emerald-500" : "w-1.5 bg-white/40"}`} />
+                ))}
               </div>
             )}
-          </AnimatePresence>
-
-          {banners.length > 1 && (
-            <div className="absolute bottom-10 right-10 z-30 flex gap-2">
-              {banners.map((_, i) => (
-                <button key={i} onClick={() => setCurrentBanner(i)} className={`h-1.5 rounded-full transition-all ${currentBanner === i ? "w-8 bg-emerald-500" : "w-1.5 bg-white/40"}`} />
-              ))}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Search */}
         <section className="-mt-8 relative z-40 px-4 sm:px-12">
@@ -133,18 +165,33 @@ const Index = () => {
           <EmergencyButton />
         </section>
 
-        {/* Categories Grid */}
-        <section className="bg-white border border-gray-100 rounded-[3rem] p-6 sm:p-10 shadow-xl shadow-gray-200/40">
-          <div className="mb-8 flex items-center justify-between">
+        {/* Popular Categories - Premium Dark Glass Theme */}
+        <section className="relative overflow-hidden rounded-[3.5rem] bg-gradient-to-br from-gray-900 via-emerald-950 to-black p-8 sm:p-12 shadow-2xl border border-white/5 group">
+          {/* Animated background glow */}
+          <div className="absolute top-0 right-0 h-64 w-64 bg-emerald-500/20 rounded-full blur-[100px] -mr-32 -mt-32 transition-all duration-1000 group-hover:bg-emerald-500/30" />
+          <div className="absolute -bottom-20 -left-20 h-80 w-80 bg-blue-500/10 rounded-full blur-[120px]" />
+
+          <div className="relative z-10 mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-black tracking-tighter text-gray-900 uppercase italic">Popular Categories</h2>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Verified professionals at your doorstep</p>
+              <h2 className="text-3xl font-black tracking-tighter text-white uppercase italic flex items-center gap-3">
+                <span className="h-10 w-1.5 bg-emerald-500 rounded-full" />
+                Popular Categories
+              </h2>
+              <p className="text-[10px] font-black text-emerald-400/80 uppercase tracking-[0.2em] mt-2">Verified experts • 100% Secure • Doorstep Service</p>
             </div>
-            <button onClick={() => setShowAllCategories(!showAllCategories)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-5 py-2.5 rounded-2xl">
-              {showAllCategories ? "Minimize" : "See All"} <ChevronRight className={`h-4 w-4 transition-transform ${showAllCategories ? "-rotate-90" : ""}`} />
+
+            <button
+              onClick={() => setShowAllCategories(!showAllCategories)}
+              className="group/btn flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white bg-white/10 hover:bg-emerald-500 transition-all px-6 py-3 rounded-2xl backdrop-blur-md border border-white/10"
+            >
+              {showAllCategories ? "Minimize" : "Explore All"}
+              <ChevronRight className={`h-4 w-4 transition-transform duration-500 ${showAllCategories ? "-rotate-90" : "group-hover/btn:translate-x-1"}`} />
             </button>
           </div>
-          <CategoryGrid showAll={showAllCategories} />
+
+          <div className="relative z-10 p-1 rounded-[2.5rem]">
+            <CategoryGrid showAll={showAllCategories} />
+          </div>
         </section>
 
         {/* Featured Professionals */}

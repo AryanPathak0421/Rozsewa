@@ -64,7 +64,22 @@ const getPublicProviderById = async (req, res) => {
 // @access  Public
 const getFeaturedProviders = async (req, res) => {
     try {
-        const providers = await Provider.find({ status: 'verified' })
+        const { lat, lng, radius = 15 } = req.query;
+        let query = { status: 'verified' };
+
+        if (lat && lng) {
+            query.location = {
+                $near: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: [parseFloat(lng), parseFloat(lat)]
+                    },
+                    $maxDistance: parseInt(radius) * 1000
+                }
+            };
+        }
+
+        const providers = await Provider.find(query)
             .select('name shopName mobile profileImage vendorType vendorCode rating joinedDate reviewCount')
             .populate('vendorType', 'name icon')
             .limit(8)
@@ -80,8 +95,21 @@ const getFeaturedProviders = async (req, res) => {
 // @access  Public
 const getPublicProviders = async (req, res) => {
     try {
-        const { category, search } = req.query;
+        const { category, search, lat, lng, radius = 15 } = req.query;
         let query = { status: 'verified' };
+
+        // Geolocation filtering
+        if (lat && lng) {
+            query.location = {
+                $near: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: [parseFloat(lng), parseFloat(lat)]
+                    },
+                    $maxDistance: parseInt(radius) * 1000 // Convert km to meters
+                }
+            };
+        }
 
         if (category) {
             const cat = await Category.findOne({ name: { $regex: new RegExp('^' + category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } });
@@ -106,12 +134,16 @@ const getPublicProviders = async (req, res) => {
             ];
         }
 
-        const providers = await Provider.find(query)
+        let providers = Provider.find(query)
             .select('name shopName mobile profileImage vendorType vendorCode rating joins reviews status joinedDate reviewCount address')
-            .populate('vendorType', 'name icon')
-            .sort({ rating: -1 });
+            .populate('vendorType', 'name icon');
 
-        res.json(providers);
+        if (!lat || !lng) {
+            providers = providers.sort({ rating: -1 });
+        }
+
+        const results = await providers;
+        res.json(results);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -187,4 +219,39 @@ const validateCoupon = async (req, res) => {
     }
 };
 
-module.exports = { getPublicBanners, getPublicCategories, getFeaturedProviders, getPublicProviders, getPublicConfig, getPublicServiceByProvider, getPublicProviderById, getPublicCategoryByName, getPublicCoupons, validateCoupon };
+const verifyReferralCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+        if (!code) return res.status(400).json({ message: 'Code is required' });
+
+        // Check Providers first
+        const provider = await Provider.findOne({ vendorCode: code.toUpperCase() });
+        if (provider) {
+            return res.json({ name: provider.ownerName, type: 'vendor' });
+        }
+
+        // Check Employees
+        const employee = await Employee.findOne({ employeeId: code.toUpperCase() });
+        if (employee) {
+            return res.json({ name: employee.name, type: 'employee' });
+        }
+
+        res.status(404).json({ message: 'Invalid referral code' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = {
+    getPublicBanners,
+    getPublicCategories,
+    getFeaturedProviders,
+    getPublicProviders,
+    getPublicConfig,
+    getPublicServiceByProvider,
+    getPublicProviderById,
+    getPublicCategoryByName,
+    getPublicCoupons,
+    validateCoupon,
+    verifyReferralCode
+};

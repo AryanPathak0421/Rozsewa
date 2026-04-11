@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MapPin, CreditCard, Wallet, Tag, Clock, Plus, Home, Briefcase, X, Check, ShieldCheck, Copy, Navigation, Zap, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,11 @@ import TopNav from "@/modules/user/components/TopNav";
 import BottomNav from "@/modules/user/components/BottomNav";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { GoogleMap, useJsApiLoader, MarkerF } from "@react-google-maps/api";
 import API from "@/lib/api";
+
+const mapContainerStyle = { width: '100%', height: '200px' };
+const center = { lat: 28.6139, lng: 77.2090 }; // Delhi
 
 const dates = Array.from({ length: 7 }, (_, i) => {
   const d = new Date();
@@ -114,6 +118,11 @@ const Checkout = () => {
 
   const total = subtotal - discount + (isExpress && !isRequestingQuote ? EXPRESS_FEE : 0);
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  });
+
   const handleDetectLocation = () => {
     if ("geolocation" in navigator) {
       setIsFetchingLocation(true);
@@ -123,7 +132,11 @@ const Checkout = () => {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
             const data = await res.json();
             if (data?.display_name) {
-              setNewAddress(prev => ({ ...prev, address: data.display_name }));
+              setNewAddress(prev => ({
+                ...prev,
+                address: data.display_name,
+                location: { type: "Point", coordinates: [pos.coords.longitude, pos.coords.latitude] }
+              }));
             }
           } catch { }
           setIsFetchingLocation(false);
@@ -133,9 +146,32 @@ const Checkout = () => {
     }
   };
 
+  const onMapClick = useCallback((e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    setNewAddress(prev => ({
+      ...prev,
+      location: { type: "Point", coordinates: [lng, lat] }
+    }));
+
+    // Reverse Geocode
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.display_name) {
+          setNewAddress(prev => ({ ...prev, address: data.display_name }));
+        }
+      });
+  }, []);
+
   const handleSaveNewAddress = async () => {
     if (!newAddress.label || !newAddress.address) return;
-    const updated = [...addresses, { label: newAddress.label, address: newAddress.address, icon: "home" }];
+    const updated = [...addresses, {
+      label: newAddress.label,
+      address: newAddress.address,
+      icon: "home",
+      location: newAddress.location
+    }];
 
     try {
       await API.put("/auth/profile", { addresses: updated });
@@ -171,6 +207,7 @@ const Checkout = () => {
         bookingTime: isExpress ? "ASAP" : selectedTime,
         totalAmount: total,
         address: selectedAddress.address,
+        location: selectedAddress.location,
         paymentMode: paymentMode,
         couponCode: appliedCouponData?.code || "",
         discountAmount: discount || 0
@@ -543,6 +580,28 @@ const Checkout = () => {
                 ) : (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-4 rounded-3xl border border-border bg-muted/30 p-5 mt-4">
                     <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">New Address</h4>
+
+                    {isLoaded && (
+                      <div className="rounded-2xl overflow-hidden border border-border h-[180px] relative">
+                        <GoogleMap
+                          mapContainerStyle={{ width: '100%', height: '100%' }}
+                          center={newAddress.location ? { lat: newAddress.location.coordinates[1], lng: newAddress.location.coordinates[0] } : center}
+                          zoom={15}
+                          onClick={onMapClick}
+                          options={{ disableDefaultUI: true, zoomControl: false }}
+                        >
+                          {newAddress.location && (
+                            <MarkerF position={{ lat: newAddress.location.coordinates[1], lng: newAddress.location.coordinates[0] }} />
+                          )}
+                        </GoogleMap>
+                        <div className="absolute bottom-2 left-2 right-2">
+                          <p className="bg-white/80 backdrop-blur text-[8px] font-bold text-center py-1 rounded-lg shadow-sm border border-white/50">
+                            Tap on map to pin exact service location
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <input type="text" placeholder="Label (e.g. Home, Office)" value={newAddress.label}
                       onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
                       className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm font-bold focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />

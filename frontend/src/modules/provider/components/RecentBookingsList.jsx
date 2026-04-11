@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Clock, MapPin, AlertTriangle, Loader2 } from "lucide-react";
+import { Check, X, Clock, MapPin, AlertTriangle, Loader2, Navigation } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import API from "@/lib/api";
@@ -139,9 +139,24 @@ const RecentBookingsList = () => {
 
                 <div className="mt-4 flex items-center justify-between">
                   <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">₹{req.totalAmount || 0}</div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 px-2 py-1 rounded-lg max-w-[140px]">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{req.address}</span>
+                  <div className="flex items-center gap-2">
+                    {req.location?.coordinates && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const [lng, lat] = req.location.coordinates;
+                          window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
+                        }}
+                        className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                        title="Navigate to Customer"
+                      >
+                        <Navigation className="h-4 w-4" />
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 px-2 py-1 rounded-lg max-w-[120px]">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{req.address}</span>
+                    </div>
                   </div>
                 </div>
 

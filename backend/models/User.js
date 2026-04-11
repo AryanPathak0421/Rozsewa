@@ -20,6 +20,18 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Mobile number is required'],
         trim: true,
     },
+    address: {
+        type: String,
+        default: "",
+    },
+    city: {
+        type: String,
+        required: [true, 'City is required'],
+    },
+    state: {
+        type: String,
+        required: [true, 'State is required'],
+    },
     password: {
         type: String,
         required: [true, 'Password is required'],
@@ -41,8 +53,23 @@ const userSchema = new mongoose.Schema({
     addresses: [{
         label: { type: String, required: true },
         address: { type: String, required: true },
-        icon: { type: String, default: 'home' }
+        icon: { type: String, default: 'home' },
+        location: {
+            type: { type: String, default: 'Point' },
+            coordinates: [Number], // [longitude, latitude]
+        }
     }],
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            default: [0, 0]
+        }
+    },
     favorites: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Provider'
@@ -52,6 +79,9 @@ const userSchema = new mongoose.Schema({
         default: Date.now,
     },
 });
+
+// Create geospatial index for location
+userSchema.index({ location: '2dsphere' });
 
 // Hash password before saving
 userSchema.pre('save', async function () {

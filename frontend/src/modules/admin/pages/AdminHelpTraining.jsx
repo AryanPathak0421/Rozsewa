@@ -4,7 +4,7 @@ import { HelpCircle, FileText, Plus, BookOpen, MessageSquare, ExternalLink, Play
 
 const AdminHelpTraining = () => {
     const { setTitle } = useOutletContext();
-    
+
     useEffect(() => {
         setTitle("Help & Training");
     }, [setTitle]);
@@ -90,12 +90,12 @@ const AdminHelpTraining = () => {
                     </div>
 
                     <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 p-6 text-white text-center shadow-lg shadow-blue-200">
-                         <div className="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30 backdrop-blur-sm">
+                        <div className="h-14 w-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30 backdrop-blur-sm">
                             <MessageSquare className="h-7 w-7" />
-                         </div>
-                         <h4 className="font-black text-lg">Support Integration</h4>
-                         <p className="text-xs text-blue-100/80 mt-2 mb-6 leading-relaxed">Your Intercom/Zendesk live chat ID is currently active and pulling data.</p>
-                         <button className="w-full py-3 bg-white text-blue-800 rounded-xl font-black text-xs hover:bg-blue-50 transition shadow-md">Open Chat Console</button>
+                        </div>
+                        <h4 className="font-black text-lg">Support Integration</h4>
+                        <p className="text-xs text-blue-100/80 mt-2 mb-6 leading-relaxed">Your Intercom/Zendesk live chat ID is currently active and pulling data.</p>
+                        <button className="w-full py-3 bg-white text-blue-800 rounded-xl font-black text-xs hover:bg-blue-50 transition shadow-md">Open Chat Console</button>
                     </div>
                 </div>
             </div>

@@ -7,7 +7,7 @@ const generateToken = require('../utils/generateToken');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-    const { name, email, mobile, password, role } = req.body;
+    const { name, email, mobile, password, role, address, city, state } = req.body;
 
     try {
         const userExists = await User.findOne({ email });
@@ -21,7 +21,11 @@ const registerUser = async (req, res) => {
             email,
             mobile,
             password,
+            address,
+            city,
+            state,
             role: role || 'customer',
+            location: req.body.location || { type: 'Point', coordinates: [0, 0] }
         });
 
         if (user) {
@@ -141,6 +145,10 @@ const updateUserProfile = async (req, res) => {
             user.mobile = mobile || user.mobile;
             user.addresses = addresses !== undefined ? addresses : user.addresses;
             user.favorites = favorites !== undefined ? favorites : user.favorites;
+
+            if (req.body.location) {
+                user.location = req.body.location;
+            }
 
             const updatedUser = await user.save();
 

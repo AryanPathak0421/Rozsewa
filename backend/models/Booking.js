@@ -53,6 +53,10 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    location: {
+        type: { type: String, default: 'Point' },
+        coordinates: [Number], // [longitude, latitude]
+    },
     rating: {
         type: Number,
         default: 0,
@@ -74,6 +78,10 @@ const bookingSchema = new mongoose.Schema({
         enum: ['now', 'after'],
         default: 'now'
     },
+    adminCommission: { type: Number, default: 0 },
+    providerPayout: { type: Number, default: 0 },
+    employeeCommission: { type: Number, default: 0 },
+    commissionStatus: { type: String, enum: ['free', 'commissioned'], default: 'free' },
     createdAt: {
         type: Date,
         default: Date.now,

@@ -78,7 +78,10 @@ import AdminEmergency from "./modules/admin/pages/AdminEmergency";
 import AdminFinance from "./modules/admin/pages/AdminFinance";
 import AdminQuality from "./modules/admin/pages/AdminQuality";
 import AdminSystem from "./modules/admin/pages/AdminSystem";
+import AdminPromotions from "./modules/admin/pages/AdminPromotions";
 import AdminHelpTraining from "./modules/admin/pages/AdminHelpTraining";
+import AdminHRM from "./modules/admin/pages/AdminHRM";
+
 
 // Admin Layout
 import AdminLayout from "./modules/admin/components/AdminLayout";
@@ -149,6 +152,7 @@ const App = () => (
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminDashboard />} />
                     <Route path="users" element={<AdminUsers />} />
+                    <Route path="hrm" element={<AdminHRM />} />
                     <Route path="providers" element={<AdminProviders />} />
                     <Route path="bookings" element={<AdminBookings />} />
                     <Route path="earnings" element={<AdminEarnings />} />
@@ -170,7 +174,8 @@ const App = () => (
                     <Route path="finance" element={<AdminFinance />} />
                     <Route path="quality" element={<AdminQuality />} />
                     <Route path="master-data" element={<AdminSystem />} />
-                    <Route path="promotions" element={<AdminSystem />} />
+                    <Route path="promotions" element={<AdminPromotions />} />
+
                     <Route path="help-training" element={<AdminHelpTraining />} />
                   </Route>
 

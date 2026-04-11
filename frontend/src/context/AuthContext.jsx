@@ -24,6 +24,29 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState(() => {
+    const saved = localStorage.getItem("rozsewa_user_location");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const detectLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!("geolocation" in navigator)) {
+        reject(new Error("Geolocation not supported"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          localStorage.setItem("rozsewa_user_location", JSON.stringify(loc));
+          resolve(loc);
+        },
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    });
+  };
 
   // Sync auth state when path changes (switching between panels)
   useEffect(() => {
@@ -97,6 +120,8 @@ export const AuthProvider = ({ children }) => {
     user: auth,
     isAuthenticated: !!auth,
     role: auth?.role || null,
+    userLocation,
+    detectLocation,
     loading,
     login,
     signup,

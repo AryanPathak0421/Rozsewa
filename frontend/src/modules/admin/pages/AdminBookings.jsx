@@ -45,7 +45,7 @@ const AdminBookings = () => {
       b.userId?.name || 'Customer',
       b.providerId?.shopName || 'Provider',
       b.serviceName,
-      b.amount,
+      b.totalAmount,
       b.status
     ]);
 
@@ -171,14 +171,14 @@ const AdminBookings = () => {
                     </td>
                     <td className="py-4 px-6">
                       <p className="flex items-center gap-0.5 font-black text-gray-900 text-base">
-                        <IndianRupee className="h-3.5 w-3.5" /> {booking.amount}
+                        <IndianRupee className="h-3.5 w-3.5" /> {booking.totalAmount}
                       </p>
                       <p className="text-[9px] font-bold text-emerald-600 tracking-widest uppercase">Prepaid Full</p>
                     </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.1em] border ${statusStyles[booking.status]}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${booking.status === 'completed' ? 'bg-emerald-500' :
-                            booking.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'
+                          booking.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'
                           }`}></span>
                         {booking.status}
                       </span>

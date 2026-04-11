@@ -12,6 +12,8 @@ const providerSchema = mongoose.Schema({
     subServices: [{ type: String }],
     vendorCode: { type: String, unique: true }, // RSVNDxxxxx
     address: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
     addresses: [
         {
             label: { type: String },
@@ -20,8 +22,15 @@ const providerSchema = mongoose.Schema({
         }
     ],
     location: {
-        type: { type: String, default: 'Point' },
-        coordinates: [Number], // [longitude, latitude]
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            default: [0, 0]
+        }
     },
     gst: { type: String },
     kycAadhaar: { type: String },
@@ -36,7 +45,23 @@ const providerSchema = mongoose.Schema({
     referralCode: { type: String },
     employeeCode: { type: String },
     profileImage: { type: String },
-    commissionFreeBookings: { type: Number, default: 0 },
+    registrationType: {
+        type: String,
+        enum: ['individual', 'vendor_referral', 'employee'],
+        default: 'individual'
+    },
+    referredBy: {
+        type: String, // Employee ID or Vendor Code
+        default: null
+    },
+    freeServicesLeft: {
+        type: Number,
+        default: 3
+    },
+    commissionRate: {
+        type: Number,
+        default: 10 // Percentage, can be set by admin
+    },
     joinedDate: { type: Date, default: Date.now }
 }, {
     timestamps: true
@@ -55,6 +80,9 @@ providerSchema.pre('save', async function () {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
+
+// Create geospatial index for location
+providerSchema.index({ location: '2dsphere' });
 
 const Provider = mongoose.model('Provider', providerSchema);
 module.exports = Provider;

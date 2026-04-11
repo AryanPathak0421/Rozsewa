@@ -71,7 +71,8 @@ const Profile = () => {
         name: editForm.name,
         email: editForm.email,
         mobile: editForm.phone,
-        avatar: editForm.avatar
+        avatar: editForm.avatar,
+        location: editForm.location
       });
       setProfile(editForm);
       toast({ title: "Profile Updated Successfully" });
@@ -197,6 +198,24 @@ const Profile = () => {
                     <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                       className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm font-semibold focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
                   </div>
+                </div>
+
+                <div className="pt-2 border-t border-dashed border-border">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if ("geolocation" in navigator) {
+                        navigator.geolocation.getCurrentPosition(async (pos) => {
+                          const { latitude, longitude } = pos.coords;
+                          setEditForm(f => ({ ...f, location: { type: 'Point', coordinates: [longitude, latitude] } }));
+                          toast({ title: "Coordinates Detected", description: "Save profile to update service location." });
+                        });
+                      }
+                    }}
+                    className="w-full h-12 flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs font-black uppercase text-emerald-600 tracking-widest hover:bg-emerald-500/10 transition-all outline-none"
+                  >
+                    <MapPin className="h-4 w-4" /> Update Service Location
+                  </button>
                 </div>
 
                 <motion.button whileTap={{ scale: 0.97 }} type="submit"

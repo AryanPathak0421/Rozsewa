@@ -78,7 +78,7 @@ const AdminCoupons = () => {
           <h2 className="text-2xl font-extrabold text-gray-900">Promo Codes</h2>
           <p className="mt-1 text-sm text-gray-500">Create discounts and promotional offers for users.</p>
         </div>
-        
+
         <div className="flex gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:min-w-[250px]">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -93,11 +93,11 @@ const AdminCoupons = () => {
             />
           </div>
           <button
-             onClick={() => setShowModal(true)}
-             className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors active:scale-95 transition-all"
-           >
-             <Plus className="h-4 w-4" /> Create
-           </button>
+            onClick={() => setShowModal(true)}
+            className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors active:scale-95 transition-all"
+          >
+            <Plus className="h-4 w-4" /> Create
+          </button>
         </div>
       </div>
 
@@ -124,14 +124,13 @@ const AdminCoupons = () => {
                       <p className="text-xs font-bold text-emerald-600">{coupon.discount} OFF</p>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                    coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 
-                    coupon.status === 'disabled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                      coupon.status === 'disabled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
                     {coupon.status}
                   </span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div>
                     <p className="text-[10px] uppercase font-bold text-gray-400">Total Usage</p>
@@ -146,17 +145,16 @@ const AdminCoupons = () => {
                 </div>
 
                 <div className="mt-2 flex items-center justify-between pt-4 border-t border-gray-100/50">
-                  <button 
+                  <button
                     onClick={() => handleToggleStatus(coupon.id)}
                     disabled={coupon.status === "expired"}
-                    className={`text-xs font-bold flex items-center gap-1.5 transition-colors ${
-                      coupon.status === "expired" ? "text-gray-400 cursor-not-allowed" :
-                      coupon.status === "active" ? "text-amber-600 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-700"
-                    }`}
+                    className={`text-xs font-bold flex items-center gap-1.5 transition-colors ${coupon.status === "expired" ? "text-gray-400 cursor-not-allowed" :
+                        coupon.status === "active" ? "text-amber-600 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-700"
+                      }`}
                   >
                     {coupon.status === "active" ? <><XCircle className="h-4 w-4" /> Disable</> : <><CheckCircle2 className="h-4 w-4" /> Enable</>}
                   </button>
-                  
+
                   <button onClick={() => handleDelete(coupon.id)} className="text-gray-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -172,40 +170,40 @@ const AdminCoupons = () => {
         {showModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden border border-gray-100">
-               <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center justify-between">
-                 <h3 className="text-lg font-extrabold text-emerald-900 flex items-center gap-2"><Plus className="h-5 w-5" /> New Promo Code</h3>
-                 <button onClick={() => setShowModal(false)} className="rounded-full p-2 bg-white/50 text-emerald-700 hover:bg-white transition-colors">
-                   <XCircle className="h-5 w-5" />
-                 </button>
-               </div>
-               
-               <form onSubmit={handleCreateCoupon} className="p-6 space-y-4">
-                 <div>
-                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Coupon Code</label>
-                   <input type="text" placeholder="e.g. SUMMER50" value={newCoupon.code} onChange={e => setNewCoupon({...newCoupon, code: e.target.value})} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-mono font-bold uppercase placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                 </div>
-                 
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Discount Amount</label>
-                     <input type="text" placeholder="e.g. 20% or ₹100" value={newCoupon.discount} onChange={e => setNewCoupon({...newCoupon, discount: e.target.value})} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Max Uses</label>
-                     <input type="number" placeholder="Limit" value={newCoupon.maxUses} onChange={e => setNewCoupon({...newCoupon, maxUses: e.target.value})} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                   </div>
-                 </div>
+              <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-emerald-900 flex items-center gap-2"><Plus className="h-5 w-5" /> New Promo Code</h3>
+                <button onClick={() => setShowModal(false)} className="rounded-full p-2 bg-white/50 text-emerald-700 hover:bg-white transition-colors">
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
 
-                 <div>
-                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Expiry Date</label>
-                   <input type="date" value={newCoupon.expiry} onChange={e => setNewCoupon({...newCoupon, expiry: e.target.value})} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold text-gray-700 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                 </div>
+              <form onSubmit={handleCreateCoupon} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Coupon Code</label>
+                  <input type="text" placeholder="e.g. SUMMER50" value={newCoupon.code} onChange={e => setNewCoupon({ ...newCoupon, code: e.target.value })} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-mono font-bold uppercase placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                </div>
 
-                 <div className="pt-4 flex gap-3">
-                   <button type="button" onClick={() => setShowModal(false)} className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                   <button type="submit" className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-colors active:scale-95 transition-all">Publish Coupon</button>
-                 </div>
-               </form>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Discount Amount</label>
+                    <input type="text" placeholder="e.g. 20% or ₹100" value={newCoupon.discount} onChange={e => setNewCoupon({ ...newCoupon, discount: e.target.value })} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Max Uses</label>
+                    <input type="number" placeholder="Limit" value={newCoupon.maxUses} onChange={e => setNewCoupon({ ...newCoupon, maxUses: e.target.value })} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Expiry Date</label>
+                  <input type="date" value={newCoupon.expiry} onChange={e => setNewCoupon({ ...newCoupon, expiry: e.target.value })} className="block w-full rounded-xl border border-gray-200 bg-gray-50 py-3 px-4 text-sm font-semibold text-gray-700 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-colors active:scale-95 transition-all">Publish Coupon</button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

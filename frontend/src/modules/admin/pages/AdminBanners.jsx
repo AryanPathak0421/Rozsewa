@@ -48,8 +48,9 @@ const AdminBanners = () => {
 
     try {
       if (editId) {
-        // Update logic (we'll implement put later if needed, for now just create/delete)
-        toast({ title: "Update coming soon", description: "Deleting and recreating recommended for now." });
+        const { data } = await API.put(`/admin/banners/${editId}`, form);
+        setBanners(banners.map(b => b._id === editId ? data : b));
+        toast({ title: "Banner Updated Successfully" });
       } else {
         const { data } = await API.post("/admin/banners", form);
         setBanners([data, ...banners]);
@@ -57,7 +58,7 @@ const AdminBanners = () => {
       }
       resetForm();
     } catch (err) {
-      toast({ title: "Save Failed", variant: "destructive" });
+      toast({ title: "Operation Failed", variant: "destructive" });
     }
   };
 
@@ -167,16 +168,23 @@ const AdminBanners = () => {
                 <p className="text-xs text-gray-500 font-bold line-clamp-2 mb-4">{b.description || "No description provided."}</p>
               </div>
 
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-50 mt-auto">
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-100 mt-auto">
+                <button
+                  onClick={() => {
+                    setForm({ ...b });
+                    setEditId(b._id);
+                    setShowForm(true);
+                  }}
+                  className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-gray-50 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 transition-colors"
+                >
+                  <Edit3 className="h-3.5 w-3.5" /> Edit
+                </button>
                 <button
                   onClick={() => handleDelete(b._id)}
                   className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-gray-50 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Remove
                 </button>
-                <div className="px-4 py-2 border border-gray-100 rounded-xl text-[9px] font-black uppercase text-gray-400 tracking-widest">
-                  {b.ctaText}
-                </div>
               </div>
             </div>
           </motion.div>
@@ -194,7 +202,7 @@ const AdminBanners = () => {
               className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-gray-100 space-y-6"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Create Campaign</h3>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{editId ? "Update Campaign" : "Create Campaign"}</h3>
                 <button onClick={resetForm} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><X className="h-5 w-5 text-gray-400" /></button>
               </div>
 
@@ -219,7 +227,7 @@ const AdminBanners = () => {
                   <textarea placeholder="Promo Text" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500/10 outline-none" />
                 </div>
 
-                <button type="submit" disabled={isUploading} className="w-full h-14 rounded-2xl bg-emerald-600 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all">Launch Campaign</button>
+                <button type="submit" disabled={isUploading} className="w-full h-14 rounded-2xl bg-emerald-600 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all">{editId ? "Update Campaign" : "Launch Campaign"}</button>
               </form>
             </motion.div>
           </motion.div>

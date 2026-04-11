@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, Users, UserCheck, CalendarDays, IndianRupee, Tag, 
-  MessageSquare, Briefcase, Settings, Image, ShieldCheck, CreditCard, 
+import {
+  LayoutDashboard, Users, UserCheck, CalendarDays, IndianRupee, Tag,
+  MessageSquare, Briefcase, Settings, Image, ShieldCheck, CreditCard,
   Percent, Landmark, Map, Zap, Wallet, BarChart4, ShieldAlert,
   Database, HelpCircle, Megaphone, Terminal
 } from "lucide-react";
@@ -9,6 +9,7 @@ import {
 const links = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { path: "/admin/users", label: "Users", icon: Users },
+  { path: "/admin/hrm", label: "HRM & Employees", icon: Briefcase },
   { path: "/admin/providers", label: "Providers", icon: UserCheck },
   { path: "/admin/kyc", label: "KYC Verification", icon: ShieldCheck },
   { path: "/admin/bookings", label: "Bookings", icon: CalendarDays },
@@ -50,11 +51,10 @@ const AdminSidebar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
-                isActive
+              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${isActive
                   ? "bg-emerald-50 text-emerald-700 shadow-sm"
                   : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              }`}
+                }`}
             >
               <link.icon className={`h-4.5 w-4.5 ${isActive ? "text-emerald-600" : "text-gray-400"}`} />
               {link.label}

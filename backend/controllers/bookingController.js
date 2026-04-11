@@ -1,5 +1,7 @@
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
+const Provider = require('../models/Provider');
+const Employee = require('../models/Employee');
 
 // @desc    Create new booking
 // @route   POST /api/bookings
@@ -17,6 +19,7 @@ const createBooking = async (req, res) => {
             bookingTime,
             totalAmount,
             address,
+            location: req.body.location,
             couponCode,
             discountAmount,
             paymentMode
@@ -193,9 +196,39 @@ const verifyEndOTP = async (req, res) => {
             if (!isAuthorized) return res.status(401).json({ message: 'Not authorized' });
 
             if (booking.endOTP === otp) {
+                // Update Provider stats and Commission logic
+                const provider = await Provider.findById(booking.providerId);
+
+                let adminCommission = 0;
+                let providerPayout = booking.totalAmount;
+                let commissionStatus = 'free';
+
+                if (provider.freeServicesLeft > 0) {
+                    provider.freeServicesLeft -= 1;
+                } else {
+                    const rate = provider.commissionRate || 10;
+                    adminCommission = (booking.totalAmount * rate) / 100;
+                    providerPayout = booking.totalAmount - adminCommission;
+                    commissionStatus = 'commissioned';
+                }
+
+                // Update booking with commission details
                 booking.status = 'completed';
-                await booking.save();
-                res.json({ message: 'Service completed successfully', status: 'completed' });
+                booking.adminCommission = adminCommission;
+                booking.providerPayout = providerPayout;
+                booking.commissionStatus = commissionStatus;
+
+                // Update provider wallet
+                provider.walletBalance += providerPayout;
+
+                await Promise.all([booking.save(), provider.save()]);
+
+                res.json({
+                    message: 'Service completed successfully',
+                    status: 'completed',
+                    payout: providerPayout,
+                    commission: adminCommission
+                });
             } else {
                 res.status(400).json({ message: 'Invalid OTP' });
             }

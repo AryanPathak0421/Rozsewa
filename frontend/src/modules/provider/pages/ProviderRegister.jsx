@@ -31,6 +31,9 @@ const ProviderRegister = () => {
   const { signup } = useAuth();
   const [step, setStep] = useState(1);
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [coords, setCoords] = useState([0, 0]);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -53,10 +56,34 @@ const ProviderRegister = () => {
     kycPanPhoto: "",
     profileImage: "",
     serviceRadius: "5",
-    referralCode: "",
-    employeeCode: "",
+    registrationType: "individual",
+    referredBy: "",
     password: "",
   });
+
+  const [referredByName, setReferredByName] = useState("");
+  const [verifyingReferral, setVerifyingReferral] = useState(false);
+
+  useEffect(() => {
+    const verifyCode = async () => {
+      if (formData.referredBy && formData.referredBy.length >= 5) {
+        setVerifyingReferral(true);
+        try {
+          const { data } = await API.get(`/public/verify-referral/${formData.referredBy}`);
+          setReferredByName(data.name);
+        } catch (err) {
+          setReferredByName("");
+        } finally {
+          setVerifyingReferral(false);
+        }
+      } else {
+        setReferredByName("");
+      }
+    };
+
+    const timer = setTimeout(verifyCode, 600);
+    return () => clearTimeout(timer);
+  }, [formData.referredBy]);
 
   const [generatedCode, setGeneratedCode] = useState("");
   const [cardConfig, setCardConfig] = useState({ enabled: true, price: 99 });
@@ -106,7 +133,13 @@ const ProviderRegister = () => {
             const { latitude, longitude } = position.coords;
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             const data = await response.json();
-            if (data && data.display_name) setAddress(data.display_name);
+            if (data && data.display_name) {
+              const addr = data.address || {};
+              setCoords([longitude, latitude]);
+              setAddress(data.display_name);
+              setCity(addr.city || addr.town || addr.village || "");
+              setState(addr.state || "");
+            }
           } catch (err) {
             console.error("Error fetching address:", err);
           } finally {
@@ -173,7 +206,13 @@ const ProviderRegister = () => {
       setIsLoading(true);
       const { data: verifyRes } = await API.post("/payment/verify", response);
       if (verifyRes.success) {
-        const finalData = { ...formData, address };
+        const finalData = {
+          ...formData,
+          address,
+          city,
+          state,
+          location: { type: 'Point', coordinates: coords }
+        };
         const signupRes = await signup(finalData, 'provider');
         if (signupRes.success) {
           setGeneratedCode(signupRes.data.vendorCode);
@@ -363,9 +402,49 @@ const ProviderRegister = () => {
                   ))}
                 </div>
                 <div className="space-y-1.5"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Secure Password</label><input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full rounded-2xl border border-border bg-background p-5 font-bold outline-none focus:ring-4 focus:ring-emerald-500/10" placeholder="••••••••" /></div>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Location</label><button type="button" onClick={fetchLocation} className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{isFetchingLocation ? 'Locating...' : 'Detect Address'}</button></div>
-                  <textarea required value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" rows={2} placeholder="Building, Street, Landmark..." />
+                <div className="space-y-4 pt-4 border-t border-dashed border-border mt-2">
+                  <div className="flex flex-col gap-3">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] ml-1 italic">Business Location</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAddress("")}
+                        className={`flex-1 py-3 rounded-2xl border-2 text-[10px] font-black uppercase transition-all tracking-widest ${!address ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-inner' : 'border-border text-gray-400 opacity-60'}`}
+                      >
+                        Enter Manually
+                      </button>
+                      <button
+                        type="button"
+                        onClick={fetchLocation}
+                        className={`flex-1 py-3 rounded-2xl border-2 text-[10px] font-black uppercase transition-all tracking-widest ${isFetchingLocation ? 'animate-pulse' : ''} ${coords[0] !== 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-inner' : 'border-border text-gray-400 opacity-60'}`}
+                      >
+                        {isFetchingLocation ? 'Locating...' : coords[0] !== 0 ? 'Location Detected ✓' : 'Use Current Location'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">State</label>
+                      <input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Maharashtra" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">City</label>
+                      <input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Mumbai" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Detailed Address</label>
+                    <textarea
+                      required
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all placeholder:opacity-50"
+                      rows={3}
+                      placeholder="Building, Street, Landmark..."
+                    />
+                  </div>
                 </div>
                 <button type="submit" disabled={isUploading} className="w-full rounded-2xl bg-emerald-600 py-5 font-black text-white shadow-xl shadow-emerald-600/20 uppercase text-xs tracking-widest transition-all active:scale-95">{isUploading ? 'Uploading Docs...' : 'Create Profile'}</button>
               </motion.form>
@@ -392,27 +471,90 @@ const ProviderRegister = () => {
 
             {step === 7 && (
               <motion.div key="s7" className="space-y-6 py-2">
-                <div className="bg-emerald-50/50 p-6 rounded-[2rem] border-2 border-emerald-100/50 flex flex-col items-center text-center relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 h-20 w-20 bg-emerald-200/20 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                  <div className="h-10 w-10 bg-white rounded-xl shadow-inner flex items-center justify-center mb-3">
-                    <Gift className="h-5 w-5 text-emerald-600" />
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase text-emerald-700 opacity-60 text-center tracking-widest">How did you find us?</p>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { id: 'individual', label: 'Individually', icon: User },
+                      { id: 'vendor_referral', label: 'By Vendor Referral', icon: Store },
+                      { id: 'employee', label: 'By RozSewa Employee', icon: Briefcase }
+                    ].map(type => (
+                      <button
+                        key={type.id}
+                        onClick={() => setFormData({ ...formData, registrationType: type.id, referredBy: "" })}
+                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${formData.registrationType === type.id ? 'border-emerald-500 bg-emerald-50 shadow-inner' : 'border-border bg-background hover:border-emerald-200'}`}
+                      >
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${formData.registrationType === type.id ? 'bg-emerald-600 text-white' : 'bg-muted text-gray-400'}`}>
+                          <type.icon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[11px] font-black uppercase tracking-tight">{type.label}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-70">
+                            {type.id === 'individual' ? 'Direct registration' : type.id === 'vendor_referral' ? 'Partner referral' : 'Assisted registration'}
+                          </p>
+                        </div>
+                        {formData.registrationType === type.id && <CheckCircle className="h-4 w-4 text-emerald-600" />}
+                      </button>
+                    ))}
                   </div>
-                  <h3 className="font-black text-emerald-900 text-base uppercase tracking-tight">Referral Code</h3>
-                  <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mb-4">Get 50 Bonus Coins (Optional)</p>
-                  <div className="relative w-full">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-300">
-                      <Star className="h-5 w-5" />
-                    </div>
-                    <input
-                      value={formData.referralCode}
-                      onChange={e => setFormData({ ...formData, referralCode: e.target.value.toUpperCase() })}
-                      className="w-full rounded-xl border-2 border-emerald-200 bg-white py-4 pl-12 pr-4 font-black text-2xl text-center tracking-widest text-emerald-900 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:opacity-30"
-                      placeholder="RSVND..."
-                    />
-                  </div>
+
+                  {/* Conditional Code Input */}
+                  <AnimatePresence>
+                    {formData.registrationType !== 'individual' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-emerald-50/50 p-6 rounded-[2rem] border-2 border-emerald-100/50 flex flex-col items-center text-center mt-2">
+                          <h3 className="font-black text-emerald-900 text-xs uppercase tracking-tight mb-3">
+                            {formData.registrationType === 'vendor_referral' ? 'Enter Vendor Referral Code' : 'Enter Employee ID'}
+                          </h3>
+                          <div className="relative w-full">
+                            <input
+                              required
+                              value={formData.referredBy || ""}
+                              onChange={e => setFormData({ ...formData, referredBy: e.target.value.toUpperCase() })}
+                              className="w-full rounded-xl border-2 border-emerald-200 bg-white py-3.5 px-4 font-black text-xl text-center tracking-widest text-emerald-900 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all placeholder:opacity-30"
+                              placeholder={formData.registrationType === 'vendor_referral' ? "RSVND..." : "EMP..."}
+                            />
+                            <AnimatePresence>
+                              {verifyingReferral && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2">
+                                  <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                          <AnimatePresence>
+                            {referredByName && (
+                              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-3 px-4 py-2 bg-emerald-100 rounded-full border border-emerald-200">
+                                <p className="text-[10px] font-black text-emerald-700 uppercase tracking-tight flex items-center gap-1.5">
+                                  <CheckCircle className="h-3 w-3" /> Referred by: {referredByName}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mt-3 italic">First 3 services will be commission-free! 🎁</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+
                 <div className="flex flex-col gap-3 px-2">
-                  <button onClick={() => setStep(8)} className="w-full rounded-2xl bg-emerald-600 py-4 font-black text-white shadow-xl uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (formData.registrationType !== 'individual' && !formData.referredBy) {
+                        toast({ title: "Code Required", description: "Please enter referral or employee code.", variant: "destructive" });
+                        return;
+                      }
+                      setStep(8);
+                    }}
+                    className="w-full rounded-2xl bg-emerald-600 py-4 font-black text-white shadow-xl shadow-emerald-600/20 uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
                     Next Step
                     <ArrowRight className="h-4 w-4" />
                   </button>

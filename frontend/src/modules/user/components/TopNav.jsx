@@ -46,10 +46,18 @@ const TopNav = () => {
     if ("geolocation" in navigator) {
       toast({ title: "Accessing Location", description: "Fetching your current city..." });
       navigator.geolocation.getCurrentPosition(
-        () => {
-          const detectedCity = "Lucknow (Detected)";
-          handleCitySelect(detectedCity);
-          toast({ title: "Location Updated", description: `Successfully detected ${detectedCity}.` });
+        async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const data = await res.json();
+            const detectedCity = data.address.city || data.address.town || data.address.village || "Unknown City";
+            const cityWithLabel = `${detectedCity} (Detected)`;
+            handleCitySelect(cityWithLabel);
+            toast({ title: "Location Updated", description: `Successfully detected ${detectedCity}.` });
+          } catch (err) {
+            toast({ title: "Detection Failed", description: "Could not identify your city.", variant: "destructive" });
+          }
         },
         () => toast({ title: "Access Denied", description: "Please enable location services.", variant: "destructive" })
       );
@@ -154,28 +162,31 @@ const TopNav = () => {
         {showLocationModal && (
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-sm rounded-[32px] bg-card p-6 shadow-2xl border border-border">
-              <div className="mb-6 flex items-center justify-between">
+              className="w-full max-w-sm rounded-[2.5rem] bg-[#090b0a] p-8 shadow-2xl border border-white/5 ring-1 ring-white/10">
+              <div className="mb-8 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-foreground">Where are you?</h3>
-                  <p className="text-xs font-medium text-muted-foreground mt-0.5">Select a city to check services</p>
+                  <h3 className="text-2xl font-black text-white tracking-tight">Where are you?</h3>
+                  <p className="text-[11px] font-bold text-gray-400 mt-1 uppercase tracking-widest opacity-80">Select a city to check services</p>
                 </div>
-                <button onClick={() => setShowLocationModal(false)} className="rounded-full bg-muted p-2 hover:bg-muted/80"><ChevronDown className="h-5 w-5 rotate-180" /></button>
+                <button onClick={() => setShowLocationModal(false)} className="rounded-2xl bg-white/5 p-2.5 text-white hover:bg-white/10 transition-colors">
+                  <ChevronDown className="h-5 w-5 rotate-180" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 {cities.map((c) => (
                   <button key={c} onClick={() => handleCitySelect(c)}
-                    className={`flex items-center gap-2 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition-all ${city === c ? "border-primary bg-primary/10 text-primary shadow-md shadow-primary/10" : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted"
+                    className={`flex items-center gap-3 rounded-2xl border-2 px-5 py-4 text-sm font-black transition-all ${city.includes(c) ? "border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]" : "border-white/5 bg-white/[0.02] text-white/90 hover:border-white/20 hover:bg-white/5"
                       }`}>
-                    <MapPin className="h-4 w-4" /> {c}
+                    <MapPin className={`h-4 w-4 ${city.includes(c) ? "text-emerald-500" : "text-gray-500"}`} /> {c}
                   </button>
                 ))}
               </div>
 
-              <button className="mt-6 w-full rounded-2xl bg-foreground py-4 text-sm font-extrabold text-background shadow-xl flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors"
+              <button className="mt-8 w-full rounded-[1.5rem] bg-gray-100 py-5 text-sm font-black text-black shadow-xl flex items-center justify-center gap-2 hover:bg-white transition-all active:scale-[0.98] group"
                 onClick={handleUseCurrentLocation}>
-                <MapPin className="h-5 w-5" /> Auto-Detect Location
+                <MapPin className="h-5 w-5 fill-black" />
+                <span>Auto-Detect Location</span>
               </button>
             </motion.div>
           </div>

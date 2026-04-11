@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Activity, Search, Clock, User, Settings, Shield, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Activity, Search, Clock, User, Settings, Shield, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import API from "@/lib/api";
 
 const typeConfig = {
   login: { icon: User, color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20" },
@@ -11,29 +12,28 @@ const typeConfig = {
   warning: { icon: AlertTriangle, color: "text-rose-600 bg-rose-50 dark:bg-rose-900/20" },
 };
 
-const defaultLogs = [
-  { type: "login", action: "Admin logged in", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 5).toISOString() },
-  { type: "approval", action: "Provider 'Ramesh Services' approved", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
-  { type: "settings", action: "Commission rate changed to 15%", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 120).toISOString() },
-  { type: "security", action: "Password changed for admin account", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
-  { type: "approval", action: "New service 'Deep Cleaning' created", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString() },
-  { type: "warning", action: "Provider 'XYZ Services' blocked for policy violation", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-  { type: "settings", action: "Cancellation policy updated", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString() },
-  { type: "login", action: "Admin logged in from new device", user: "Super Admin", time: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() },
-];
-
 const AdminActivityLog = () => {
   const { setTitle } = useOutletContext();
-  const [logs] = useState(() => {
-    const saved = JSON.parse(localStorage.getItem("rozsewa_admin_activity_log") || "[]");
-    return saved.length > 0 ? saved : defaultLogs;
-  });
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
 
   useEffect(() => {
     setTitle("System Logs");
+    fetchLogs();
   }, [setTitle]);
+
+  const fetchLogs = async () => {
+    try {
+      const { data } = await API.get("/admin/activity");
+      setLogs(data);
+    } catch (err) {
+      console.error("Log Sync Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = logs
     .filter(l => filterType === "all" || l.type === filterType)
@@ -42,44 +42,49 @@ const AdminActivityLog = () => {
   const timeAgo = (iso) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  if (loading) return (
+    <div className="flex h-96 flex-col items-center justify-center space-y-4 text-center">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Reconstructing Audit Trail...</p>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
+      <div className="text-left">
         <h1 className="text-2xl font-black text-foreground">Activity Log</h1>
         <p className="text-sm text-muted-foreground mt-1">Track all admin actions and events</p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input type="text" placeholder="Search activities..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
         </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-1">
           {["all", "login", "approval", "settings", "security", "warning"].map(t => (
             <button key={t} onClick={() => setFilterType(t)}
-              className={`rounded-lg px-3 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                filterType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}>
-              {t === "all" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
+              className={`rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${filterType === t ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`}>
+              {t === "all" ? "All" : t}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Timeline */}
       <div className="space-y-1">
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center py-16 text-center rounded-2xl border-2 border-dashed border-border">
-            <Activity className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm font-semibold text-muted-foreground">No activities found</p>
+          <div className="flex flex-col items-center py-20 text-center rounded-3xl border-2 border-dashed border-border bg-muted/5">
+            <Activity className="h-12 w-12 text-muted-foreground/20 mb-3" />
+            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground/40">Audit Vault Empty</p>
           </div>
         )}
         {filtered.map((log, i) => {
@@ -87,15 +92,15 @@ const AdminActivityLog = () => {
           const Icon = conf.icon;
           return (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-              className="flex gap-3 py-3 border-b border-border/50 last:border-0">
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${conf.color}`}>
+              className="flex gap-4 py-4 border-b border-border/50 last:border-0 hover:bg-muted/5 px-2 rounded-xl transition-colors group text-left">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105 ${conf.color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{log.action}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">{log.user}</span>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Clock className="h-3 w-3" /> {timeAgo(log.time)}</span>
+                <p className="text-sm font-bold text-foreground leading-tight">{log.action}</p>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{log.user}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {timeAgo(log.time)}</span>
                 </div>
               </div>
             </motion.div>

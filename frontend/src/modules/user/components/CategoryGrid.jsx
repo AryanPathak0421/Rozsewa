@@ -48,58 +48,72 @@ const CategoryGrid = ({ showAll = true }) => {
     return <Icon className="h-6 w-6" />;
   };
 
-  // Assign fixed colors based on index to keep it colorful but deterministic
-  const colors = [
-    "bg-emerald-50 text-emerald-600",
-    "bg-blue-50 text-blue-600",
-    "bg-pink-50 text-pink-600",
-    "bg-amber-50 text-amber-700",
-    "bg-indigo-50 text-indigo-600",
-    "bg-rose-50 text-rose-600",
-    "bg-cyan-50 text-cyan-600",
-    "bg-purple-50 text-purple-600",
-    "bg-orange-50 text-orange-600",
-    "bg-teal-50 text-teal-600",
+  // Premium Glass Palette for Dark Theme
+  const themes = [
+    { bg: "bg-white/10", icon: "text-emerald-400", shadow: "shadow-emerald-500/20" },
+    { bg: "bg-white/10", icon: "text-blue-400", shadow: "shadow-blue-500/20" },
+    { bg: "bg-white/10", icon: "text-pink-400", shadow: "shadow-pink-500/20" },
+    { bg: "bg-white/10", icon: "text-amber-400", shadow: "shadow-amber-500/20" },
+    { bg: "bg-white/10", icon: "text-violet-400", shadow: "shadow-violet-500/20" },
+    { bg: "bg-white/10", icon: "text-rose-400", shadow: "shadow-rose-500/20" },
+    { bg: "bg-white/10", icon: "text-cyan-400", shadow: "shadow-cyan-500/20" },
+    { bg: "bg-white/10", icon: "text-orange-400", shadow: "shadow-orange-500/20" },
+    { bg: "bg-white/10", icon: "text-indigo-400", shadow: "shadow-indigo-500/20" },
+    { bg: "bg-white/10", icon: "text-teal-400", shadow: "shadow-teal-500/20" },
   ];
 
   const displayList = showAll ? categories : categories.slice(0, 10);
 
   if (loading) return (
-    <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-10 gap-4">
+    <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-10 gap-x-2 gap-y-6">
       {[...Array(10)].map((_, i) => (
-        <div key={i} className="flex flex-col items-center gap-2 animate-pulse">
-          <div className="h-14 w-14 bg-gray-100 rounded-2xl"></div>
-          <div className="h-2 w-12 bg-gray-100 rounded"></div>
+        <div key={i} className="flex flex-col items-center gap-3 animate-pulse">
+          <div className="h-16 w-16 bg-white/5 rounded-2xl"></div>
+          <div className="h-2 w-12 bg-white/5 rounded"></div>
         </div>
       ))}
     </div>
   );
 
   return (
-    <div className="grid grid-cols-4 gap-x-2 gap-y-6 sm:grid-cols-5 lg:grid-cols-10">
-      {displayList.map((cat, i) => (
-        <motion.button
-          key={cat._id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.02 }}
-          whileHover={{ y: -8, scale: 1.05 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(`/shops?category=${encodeURIComponent(cat.name)}`)}
-          className="group flex flex-col items-center gap-2"
-        >
-          <div className={`flex h-16 w-16 items-center justify-center rounded-[1.5rem] ${cat.image ? "" : colors[i % colors.length]} transition-all shadow-sm group-hover:shadow-xl group-hover:shadow-emerald-500/10 overflow-hidden border border-transparent group-hover:border-emerald-500/20`}>
-            {cat.image ? (
-              <img src={cat.image} alt={cat.name} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-            ) : (
-              getIcon(cat.icon)
-            )}
-          </div>
-          <span className="text-[11px] font-black text-gray-700 uppercase tracking-tight text-center leading-tight line-clamp-1 decoration-emerald-500 group-hover:text-emerald-700">
-            {cat.name}
-          </span>
-        </motion.button>
-      ))}
+    <div className="grid grid-cols-4 gap-x-2 gap-y-8 sm:grid-cols-5 lg:grid-cols-10">
+      {displayList.map((cat, i) => {
+        const theme = themes[i % themes.length];
+        return (
+          <motion.button
+            key={cat._id}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.02 }}
+            whileHover={{ y: -5 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate(`/shops?category=${encodeURIComponent(cat.name)}`)}
+            className="group flex flex-col items-center gap-2"
+          >
+            <div className={`
+              relative flex h-16 w-16 items-center justify-center rounded-[1.75rem]
+              ${cat.image ? "bg-white p-0.5" : `${theme.bg} border border-white/10`}
+              transition-all duration-300 shadow-lg group-hover:shadow-2xl ${theme.shadow}
+              overflow-hidden group-hover:scale-110 backdrop-blur-md
+            `}>
+              {/* Gloss effect overlay */}
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+
+              {cat.image ? (
+                <img src={cat.image} alt={cat.name} className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-110" />
+              ) : (
+                <div className={`${theme.icon} transition-transform duration-300 group-hover:scale-125 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`}>
+                  {getIcon(cat.icon)}
+                </div>
+              )}
+            </div>
+
+            <span className="text-[10px] font-black text-white/80 uppercase tracking-tight text-center leading-tight line-clamp-2 px-1 transition-colors group-hover:text-emerald-400">
+              {cat.name}
+            </span>
+          </motion.button>
+        );
+      })}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPublicBanners, getPublicCategories, getFeaturedProviders, getPublicProviders, getPublicConfig, getPublicServiceByProvider, getPublicProviderById, getPublicCategoryByName, getPublicCoupons, validateCoupon } = require('../controllers/homeController');
+const { getPublicBanners, getPublicCategories, getFeaturedProviders, getPublicProviders, getPublicConfig, getPublicServiceByProvider, getPublicProviderById, getPublicCategoryByName, getPublicCoupons, validateCoupon, verifyReferralCode } = require('../controllers/homeController');
 
 router.get('/banners', getPublicBanners);
 router.get('/categories', getPublicCategories);
@@ -11,6 +11,7 @@ router.get('/providers/:id', getPublicProviderById);
 router.get('/services/:providerId', getPublicServiceByProvider);
 router.get('/coupons', getPublicCoupons);
 router.post('/coupons/validate', validateCoupon);
+router.get('/verify-referral/:code', verifyReferralCode);
 router.get('/config', getPublicConfig);
 
 module.exports = router;

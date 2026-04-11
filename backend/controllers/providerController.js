@@ -1,13 +1,14 @@
 const Provider = require('../models/Provider');
 const generateToken = require('../utils/generateToken');
+const Employee = require('../models/Employee');
 
 // @desc    Register a new provider
 // @route   POST /api/provider/register
 // @access  Public
 const registerProvider = async (req, res) => {
     const {
-        mobile, ownerName, shopName, password, businessType, vendorType, subServices, profileImage, address,
-        gst, kycAadhaar, kycAadhaarPhoto, kycPanPhoto, referralCode, employeeCode
+        mobile, ownerName, shopName, password, businessType, vendorType, subServices, profileImage, address, city, state,
+        gst, kycAadhaar, kycAadhaarPhoto, kycPanPhoto, referralCode, employeeCode, registrationType, referredBy
     } = req.body;
 
     try {
@@ -20,6 +21,27 @@ const registerProvider = async (req, res) => {
         // Generate a random vendor code RSVND + 5 digits
         const vendorCode = "RSVND" + Math.floor(10000 + Math.random() * 90000);
 
+        // Core dynamic logic for First 3 Free services & Payouts
+        let freeServicesLeft = 3; // Always 3 free for new vendors per request
+
+        // Handle referral logic
+        if (registrationType === 'vendor_referral' && referredBy) {
+            // Find referring vendor and give them 3 more free services
+            const referringVendor = await Provider.findOne({ vendorCode: referredBy });
+            if (referringVendor) {
+                referringVendor.freeServicesLeft += 3;
+                await referringVendor.save();
+            }
+        } else if (registrationType === 'employee' && referredBy) {
+            // Find employee and update stats
+            const employee = await Employee.findOne({ employeeId: referredBy });
+            if (employee) {
+                employee.referralCount += 1;
+                employee.totalEarnings += employee.registrationCommission;
+                await employee.save();
+            }
+        }
+
         const provider = await Provider.create({
             mobile,
             ownerName,
@@ -31,12 +53,18 @@ const registerProvider = async (req, res) => {
             profileImage,
             vendorCode,
             address,
+            city,
+            state,
             gst,
             kycAadhaar,
             kycAadhaarPhoto,
             kycPanPhoto,
             referralCode,
             employeeCode,
+            registrationType: registrationType || 'individual',
+            referredBy: referredBy || null,
+            freeServicesLeft,
+            location: req.body.location,
             status: 'pending' // Verification required by admin
         });
 
@@ -50,6 +78,7 @@ const registerProvider = async (req, res) => {
                 vendorCode: provider.vendorCode,
                 vendorType: provider.vendorType,
                 businessType: provider.businessType,
+                freeServicesLeft: provider.freeServicesLeft,
                 token: generateToken(provider._id),
             });
         } else {
@@ -79,6 +108,7 @@ const authProvider = async (req, res) => {
                 vendorCode: provider.vendorCode,
                 vendorType: provider.vendorType,
                 businessType: provider.businessType,
+                freeServicesLeft: provider.freeServicesLeft,
                 role: 'provider',
                 token: generateToken(provider._id),
             });
@@ -148,6 +178,10 @@ const updateProviderProfile = async (req, res) => {
             provider.vendorType = req.body.category || req.body.vendorType || provider.vendorType;
             provider.address = req.body.address || provider.address;
             provider.profileImage = req.body.profileImage || provider.profileImage;
+
+            if (req.body.location) {
+                provider.location = req.body.location;
+            }
 
             const updatedProvider = await provider.save();
 

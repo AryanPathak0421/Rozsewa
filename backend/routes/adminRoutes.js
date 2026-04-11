@@ -12,10 +12,35 @@ const {
     getUsers,
     getBanners,
     addBanner,
+    updateBanner,
     deleteBanner,
-    toggleBannerStatus
+    toggleBannerStatus,
+    getEmergencyData,
+    broadcastEmergency,
+    get99CardData,
+    getFeedbackData,
+    getActivityLogs,
+    getSettings,
+    updateSettings,
+    updateAdminProfile,
+    getPromotions,
+    createPromotion,
+    deletePromotion,
+    getZones,
+    addZone,
+    deleteZone,
+    getEmployees,
+    addEmployee,
+    deleteEmployee
 } = require('../controllers/adminController');
+
 const { protect, admin } = require('../middleware/authMiddleware');
+
+// HRM Management
+
+router.get('/employees', protect, admin, getEmployees);
+router.post('/employees', protect, admin, addEmployee);
+router.delete('/employees/:id', protect, admin, deleteEmployee);
 
 // Provider management
 router.get('/providers', protect, admin, getProviders);
@@ -33,13 +58,49 @@ router.get('/users', protect, admin, getUsers);
 // Banner management
 router.get('/banners', protect, admin, getBanners);
 router.post('/banners', protect, admin, addBanner);
+router.put('/banners/:id', protect, admin, updateBanner);
 router.delete('/banners/:id', protect, admin, deleteBanner);
 router.patch('/banners/:id/status', protect, admin, toggleBannerStatus);
 
 // Dashboard stats
 router.get('/stats', protect, admin, getAdminStats);
 
+// Emergency control
+router.get('/emergency', protect, admin, getEmergencyData);
+router.post('/emergency/broadcast', protect, admin, broadcastEmergency);
+
+// 99 Card management
+router.get('/99cards', protect, admin, get99CardData);
+
+// Feedback moderation
+router.get('/feedback', protect, admin, getFeedbackData);
+
+// Activity logs
+router.get('/activity', protect, admin, getActivityLogs);
+
+// Platform Settings & Profile
+router.get('/settings', protect, admin, getSettings);
+router.post('/settings', protect, admin, updateSettings);
+router.post('/profile', protect, admin, updateAdminProfile);
+
 // Booking management
 router.get('/bookings', protect, admin, getBookings);
 
+// Promotion management
+router.get('/promotions', protect, admin, getPromotions);
+router.post('/promotions', protect, admin, createPromotion);
+router.delete('/promotions/:id', protect, admin, deletePromotion);
+
+// Zone Management
+router.get('/zones', protect, admin, getZones);
+router.post('/zones', protect, admin, addZone);
+router.delete('/zones/:id', protect, admin, deleteZone);
+
+// HRM Management
+router.get('/test-hrm', (req, res) => res.json({ message: 'HRM Route is registered' }));
+router.get('/employees', protect, admin, getEmployees);
+router.post('/employees', protect, admin, addEmployee);
+router.delete('/employees/:id', protect, admin, deleteEmployee);
+
 module.exports = router;
+
