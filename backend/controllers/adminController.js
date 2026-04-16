@@ -28,6 +28,17 @@ const updateProviderStatus = async (req, res) => {
         }
 
         provider.status = req.body.status || provider.status;
+
+        // If admin verifies the provider, auto-verify current documents as well
+        if (req.body.status === 'verified' && provider.documents) {
+            provider.documents.forEach(doc => {
+                if (doc.status === 'pending') {
+                    doc.status = 'verified';
+                }
+            });
+            provider.kycVerified = true;
+        }
+
         const updatedProvider = await provider.save();
         res.json(updatedProvider);
     } catch (error) {
@@ -535,7 +546,7 @@ async function getEmployees(req, res) {
 // @access  Private/Admin
 async function addEmployee(req, res) {
     try {
-        const { name, email, mobile, password, registrationCommission } = req.body;
+        const { name, email, mobile, registrationCommission } = req.body;
 
         // Generate Employee ID (e.g., EMP1001)
         const count = await Employee.countDocuments();
@@ -545,7 +556,6 @@ async function addEmployee(req, res) {
             name,
             email,
             mobile,
-            password,
             employeeId,
             registrationCommission
         });
@@ -562,6 +572,29 @@ async function deleteEmployee(req, res) {
     try {
         await Employee.findByIdAndDelete(req.params.id);
         res.json({ message: 'Employee removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+// @desc    Update employee
+// @route   PUT /api/admin/employees/:id
+// @access  Private/Admin
+async function updateEmployee(req, res) {
+    try {
+        const employee = await Employee.findById(req.params.id);
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        const { name, email, mobile, registrationCommission, isActive } = req.body;
+
+        employee.name = name || employee.name;
+        employee.email = email || employee.email;
+        employee.mobile = mobile || employee.mobile;
+        employee.registrationCommission = registrationCommission !== undefined ? registrationCommission : employee.registrationCommission;
+        employee.isActive = isActive !== undefined ? isActive : employee.isActive;
+
+        const updated = await employee.save();
+        res.json(updated);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -598,6 +631,7 @@ module.exports = {
     deleteZone,
     getEmployees,
     addEmployee,
+    updateEmployee,
     deleteEmployee
 };
 

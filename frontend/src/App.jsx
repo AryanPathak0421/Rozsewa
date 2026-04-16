@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ChatProvider } from "@/context/ChatContext";
+import { SocketProvider } from "@/context/SocketContext";
 
 // User Pages
 import Index from "./modules/user/pages/Index";
@@ -33,6 +34,7 @@ import SupportTickets from "./modules/user/pages/SupportTickets";
 import SubscriptionPlans from "./modules/user/pages/SubscriptionPlans";
 import Offers from "./modules/user/pages/Offers";
 import ProtectedRoute from "./components/ProtectedRoute";
+import GlobalAlarm from "./components/GlobalAlarm";
 
 // Provider Pages
 import ProviderDashboard from "./modules/provider/pages/ProviderDashboard";
@@ -93,99 +95,102 @@ const App = () => (
     <ThemeProvider defaultTheme="light">
       <AuthProvider>
         <ChatProvider>
-          <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AnimatePresence mode="wait">
-                <Routes>
-                  {/* Customer Login */}
-                  <Route path="/login" element={<CustomerLogin />} />
+          <SocketProvider>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <GlobalAlarm />
+                <AnimatePresence mode="wait">
+                  <Routes>
+                    {/* Customer Login */}
+                    <Route path="/login" element={<CustomerLogin />} />
 
-                  {/* Customer Routes */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/shops" element={<ShopListing />} />
-                  <Route path="/shop/:id" element={<ShopDetail />} />
-                  <Route path="/category" element={<SubcategoryPage />} />
+                    {/* Customer Routes */}
+                    <Route path="/" element={<Index />} />
+                    <Route path="/shops" element={<ShopListing />} />
+                    <Route path="/shop/:id" element={<ShopDetail />} />
+                    <Route path="/category" element={<SubcategoryPage />} />
 
-                  {/* Protected Customer Routes */}
-                  <Route path="/checkout" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Checkout /></ProtectedRoute>} />
-                  <Route path="/tracking" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><LiveTracking /></ProtectedRoute>} />
-                  <Route path="/booking-waiting" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><BookingWaiting /></ProtectedRoute>} />
-                  <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><ServiceHistory /></ProtectedRoute>} />
-                  <Route path="/profile" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Profile /></ProtectedRoute>} />
-                  <Route path="/wallet" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Wallet /></ProtectedRoute>} />
-                  <Route path="/favorites" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Favorites /></ProtectedRoute>} />
-                  <Route path="/addresses" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Addresses /></ProtectedRoute>} />
-                  <Route path="/security" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Security /></ProtectedRoute>} />
-                  <Route path="/subscriptions" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><SubscriptionPlans /></ProtectedRoute>} />
+                    {/* Protected Customer Routes */}
+                    <Route path="/checkout" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Checkout /></ProtectedRoute>} />
+                    <Route path="/tracking" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><LiveTracking /></ProtectedRoute>} />
+                    <Route path="/booking-waiting" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><BookingWaiting /></ProtectedRoute>} />
+                    <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><ServiceHistory /></ProtectedRoute>} />
+                    <Route path="/profile" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Profile /></ProtectedRoute>} />
+                    <Route path="/wallet" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Wallet /></ProtectedRoute>} />
+                    <Route path="/favorites" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Favorites /></ProtectedRoute>} />
+                    <Route path="/addresses" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Addresses /></ProtectedRoute>} />
+                    <Route path="/security" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><Security /></ProtectedRoute>} />
+                    <Route path="/subscriptions" element={<ProtectedRoute allowedRoles={["customer", "provider"]}><SubscriptionPlans /></ProtectedRoute>} />
 
-                  {/* Public Info Routes */}
-                  <Route path="/post-service" element={<PostService />} />
-                  <Route path="/refer-earn" element={<ReferEarn />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/help-support" element={<HelpSupport />} />
-                  <Route path="/complaint" element={<ComplaintForm />} />
-                  <Route path="/support-tickets" element={<SupportTickets />} />
-                  <Route path="/offers" element={<Offers />} />
+                    {/* Public Info Routes */}
+                    <Route path="/post-service" element={<PostService />} />
+                    <Route path="/refer-earn" element={<ReferEarn />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/help-support" element={<HelpSupport />} />
+                    <Route path="/complaint" element={<ComplaintForm />} />
+                    <Route path="/support-tickets" element={<SupportTickets />} />
+                    <Route path="/offers" element={<Offers />} />
 
-                  {/* Provider Routes */}
-                  <Route path="/provider" element={<ProviderDashboard />} />
-                  <Route path="/provider/login" element={<ProviderLogin />} />
-                  <Route path="/provider/register" element={<ProviderRegister />} />
-                  <Route path="/provider/profile" element={<ProviderProfile />} />
-                  <Route path="/provider/bookings" element={<ProviderBookings />} />
-                  <Route path="/provider/staff" element={<ProviderStaff />} />
-                  <Route path="/provider/earnings" element={<ProviderEarnings />} />
-                  <Route path="/provider/services" element={<ProviderServices />} />
-                  <Route path="/provider/availability" element={<ProviderAvailability />} />
-                  <Route path="/provider/documents" element={<ProviderDocuments />} />
-                  <Route path="/provider/reviews" element={<ProviderReviews />} />
-                  <Route path="/provider/99card" element={<Provider99Card />} />
-                  <Route path="/provider/offers" element={<ProviderOffers />} />
-                  <Route path="/provider/settings" element={<ProviderSettings />} />
-                  <Route path="/provider/support" element={<ProviderSupport />} />
-                  <Route path="/provider/notifications" element={<ProviderNotifications />} />
-                  <Route path="/provider/wallet" element={<ProviderWallet />} />
+                    {/* Provider Routes */}
+                    <Route path="/provider" element={<ProviderDashboard />} />
+                    <Route path="/provider/login" element={<ProviderLogin />} />
+                    <Route path="/provider/register" element={<ProviderRegister />} />
+                    <Route path="/provider/profile" element={<ProviderProfile />} />
+                    <Route path="/provider/bookings" element={<ProviderBookings />} />
+                    <Route path="/provider/staff" element={<ProviderStaff />} />
+                    <Route path="/provider/earnings" element={<ProviderEarnings />} />
+                    <Route path="/provider/services" element={<ProviderServices />} />
+                    <Route path="/provider/availability" element={<ProviderAvailability />} />
+                    <Route path="/provider/documents" element={<ProviderDocuments />} />
+                    <Route path="/provider/reviews" element={<ProviderReviews />} />
+                    <Route path="/provider/99card" element={<Provider99Card />} />
+                    <Route path="/provider/offers" element={<ProviderOffers />} />
+                    <Route path="/provider/settings" element={<ProviderSettings />} />
+                    <Route path="/provider/support" element={<ProviderSupport />} />
+                    <Route path="/provider/notifications" element={<ProviderNotifications />} />
+                    <Route path="/provider/wallet" element={<ProviderWallet />} />
 
-                  {/* Admin Routes with Persistent Layout */}
-                  <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="users" element={<AdminUsers />} />
-                    <Route path="hrm" element={<AdminHRM />} />
-                    <Route path="providers" element={<AdminProviders />} />
-                    <Route path="bookings" element={<AdminBookings />} />
-                    <Route path="earnings" element={<AdminEarnings />} />
-                    <Route path="coupons" element={<AdminCoupons />} />
-                    <Route path="feedback" element={<AdminFeedback />} />
-                    <Route path="services" element={<AdminServices />} />
-                    <Route path="settings" element={<AdminSettings />} />
-                    <Route path="disputes" element={<AdminDisputes />} />
-                    <Route path="banners" element={<AdminBanners />} />
-                    <Route path="notifications" element={<AdminNotifications />} />
-                    <Route path="activity-log" element={<AdminActivityLog />} />
-                    <Route path="kyc" element={<AdminKYC />} />
-                    <Route path="99cards" element={<Admin99Card />} />
-                    <Route path="commission" element={<AdminCommission />} />
-                    <Route path="offers" element={<AdminOffers />} />
-                    <Route path="zones" element={<AdminZones />} />
-                    <Route path="dispatch" element={<AdminDispatch />} />
-                    <Route path="emergency" element={<AdminEmergency />} />
-                    <Route path="finance" element={<AdminFinance />} />
-                    <Route path="quality" element={<AdminQuality />} />
-                    <Route path="master-data" element={<AdminSystem />} />
-                    <Route path="promotions" element={<AdminPromotions />} />
+                    {/* Admin Routes with Persistent Layout */}
+                    <Route path="/admin" element={<AdminLayout />}>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="users" element={<AdminUsers />} />
+                      <Route path="hrm" element={<AdminHRM />} />
+                      <Route path="providers" element={<AdminProviders />} />
+                      <Route path="bookings" element={<AdminBookings />} />
+                      <Route path="earnings" element={<AdminEarnings />} />
+                      <Route path="coupons" element={<AdminCoupons />} />
+                      <Route path="feedback" element={<AdminFeedback />} />
+                      <Route path="services" element={<AdminServices />} />
+                      <Route path="settings" element={<AdminSettings />} />
+                      <Route path="disputes" element={<AdminDisputes />} />
+                      <Route path="banners" element={<AdminBanners />} />
+                      <Route path="notifications" element={<AdminNotifications />} />
+                      <Route path="activity-log" element={<AdminActivityLog />} />
+                      <Route path="kyc" element={<AdminKYC />} />
+                      <Route path="99cards" element={<Admin99Card />} />
+                      <Route path="commission" element={<AdminCommission />} />
+                      <Route path="offers" element={<AdminOffers />} />
+                      <Route path="zones" element={<AdminZones />} />
+                      <Route path="dispatch" element={<AdminDispatch />} />
+                      <Route path="emergency" element={<AdminEmergency />} />
+                      <Route path="finance" element={<AdminFinance />} />
+                      <Route path="quality" element={<AdminQuality />} />
+                      <Route path="master-data" element={<AdminSystem />} />
+                      <Route path="promotions" element={<AdminPromotions />} />
 
-                    <Route path="help-training" element={<AdminHelpTraining />} />
-                  </Route>
+                      <Route path="help-training" element={<AdminHelpTraining />} />
+                    </Route>
 
-                  <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin/login" element={<AdminLogin />} />
 
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AnimatePresence>
-            </TooltipProvider>
-          </QueryClientProvider>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AnimatePresence>
+              </TooltipProvider>
+            </QueryClientProvider>
+          </SocketProvider>
         </ChatProvider>
       </AuthProvider>
     </ThemeProvider>

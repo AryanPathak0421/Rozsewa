@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Users, Plus, Search, Mail, Phone, Trash2,
     UserCircle, BadgeCheck, AlertCircle, Loader2,
-    X, Save, IndianRupee, Key
+    X, Save, IndianRupee, Key, Edit3
 } from "lucide-react";
 import API from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,6 +12,7 @@ const AdminHRM = () => {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editId, setEditId] = useState(null);
     const [search, setSearch] = useState("");
     const { toast } = useToast();
 
@@ -19,7 +20,6 @@ const AdminHRM = () => {
         name: "",
         email: "",
         mobile: "",
-        password: "",
         registrationCommission: 50
     });
 
@@ -41,14 +41,36 @@ const AdminHRM = () => {
     const handleAddEmployee = async (e) => {
         e.preventDefault();
         try {
-            const { data } = await API.post("/admin/employees", formData);
-            setEmployees([data, ...employees]);
+            if (editId) {
+                const { data } = await API.put(`/admin/employees/${editId}`, formData);
+                setEmployees(employees.map(emp => emp._id === editId ? data : emp));
+                toast({ title: "Employee updated successfully!" });
+            } else {
+                const { data } = await API.post("/admin/employees", formData);
+                setEmployees([data, ...employees]);
+                toast({ title: "Employee registered successfully!" });
+            }
             setShowAddModal(false);
-            setFormData({ name: "", email: "", mobile: "", password: "", registrationCommission: 50 });
-            toast({ title: "Employee registered successfully!" });
+            resetForm();
         } catch (err) {
-            toast({ title: "Registration failed", variant: "destructive" });
+            toast({ title: editId ? "Update failed" : "Registration failed", variant: "destructive" });
         }
+    };
+
+    const resetForm = () => {
+        setFormData({ name: "", email: "", mobile: "", registrationCommission: 50 });
+        setEditId(null);
+    };
+
+    const openEditModal = (emp) => {
+        setFormData({
+            name: emp.name,
+            email: emp.email,
+            mobile: emp.mobile,
+            registrationCommission: emp.registrationCommission
+        });
+        setEditId(emp._id);
+        setShowAddModal(true);
     };
 
     const handleDeleteEmployee = async (id) => {
@@ -168,12 +190,20 @@ const AdminHRM = () => {
                                         ₹{emp.registrationCommission}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => handleDeleteEmployee(emp._id)}
-                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 className="h-5 w-5" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => openEditModal(emp)}
+                                                className="p-2 text-gray-300 hover:text-blue-500 transition-colors"
+                                            >
+                                                <Edit3 className="h-5 w-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteEmployee(emp._id)}
+                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -194,10 +224,14 @@ const AdminHRM = () => {
                         >
                             <div className="flex items-center justify-between mb-8">
                                 <div>
-                                    <h3 className="text-xl font-black text-gray-900 uppercase">New Staff Member</h3>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1 italic">Register a new RozSewa employee</p>
+                                    <h3 className="text-xl font-black text-gray-900 uppercase">
+                                        {editId ? "Edit Staff Member" : "New Staff Member"}
+                                    </h3>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1 italic">
+                                        {editId ? "Update existing employee details" : "Register a new RozSewa employee"}
+                                    </p>
                                 </div>
-                                <button onClick={() => setShowAddModal(false)} className="p-2 rounded-2xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-all">
+                                <button onClick={() => { setShowAddModal(false); resetForm(); }} className="p-2 rounded-2xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-all">
                                     <X className="h-5 w-5" />
                                 </button>
                             </div>
@@ -240,39 +274,25 @@ const AdminHRM = () => {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Access Password</label>
-                                        <div className="relative">
-                                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                            <input
-                                                required
-                                                type="password"
-                                                value={formData.password}
-                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                                className="w-full rounded-2xl border border-gray-100 bg-gray-50 pl-11 pr-4 py-3.5 text-sm font-bold focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                                                placeholder="••••••••"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reg. Commission (₹)</label>
-                                        <div className="relative">
-                                            <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                            <input
-                                                required
-                                                type="number"
-                                                value={formData.registrationCommission}
-                                                onChange={(e) => setFormData({ ...formData, registrationCommission: e.target.value })}
-                                                className="w-full rounded-2xl border border-gray-100 bg-gray-50 pl-11 pr-4 py-3.5 text-sm font-bold focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                                            />
-                                        </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reg. Commission (₹)</label>
+                                    <div className="relative">
+                                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input
+                                            required
+                                            type="number"
+                                            value={formData.registrationCommission}
+                                            onChange={(e) => setFormData({ ...formData, registrationCommission: e.target.value })}
+                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 pl-11 pr-4 py-3.5 text-sm font-bold focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="pt-4 flex gap-3">
-                                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 rounded-2xl border border-gray-100 bg-white py-4 text-sm font-black text-gray-500 hover:bg-gray-50 transition-all uppercase tracking-widest">Cancel</button>
-                                    <button type="submit" className="flex-1 rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-xl shadow-emerald-600/20 hover:shadow-2xl transition-all uppercase tracking-widest">Save Employee</button>
+                                    <button type="button" onClick={() => { setShowAddModal(false); resetForm(); }} className="flex-1 rounded-2xl border border-gray-100 bg-white py-4 text-sm font-black text-gray-500 hover:bg-gray-50 transition-all uppercase tracking-widest">Cancel</button>
+                                    <button type="submit" className="flex-1 rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-xl shadow-emerald-600/20 hover:shadow-2xl transition-all uppercase tracking-widest">
+                                        {editId ? "Update Employee" : "Save Employee"}
+                                    </button>
                                 </div>
                             </form>
                         </motion.div>

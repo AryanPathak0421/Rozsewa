@@ -31,6 +31,7 @@ const {
     deleteZone,
     getEmployees,
     addEmployee,
+    updateEmployee,
     deleteEmployee
 } = require('../controllers/adminController');
 
@@ -40,6 +41,7 @@ const { protect, admin } = require('../middleware/authMiddleware');
 
 router.get('/employees', protect, admin, getEmployees);
 router.post('/employees', protect, admin, addEmployee);
+router.put('/employees/:id', protect, admin, updateEmployee);
 router.delete('/employees/:id', protect, admin, deleteEmployee);
 
 // Provider management
@@ -95,12 +97,6 @@ router.delete('/promotions/:id', protect, admin, deletePromotion);
 router.get('/zones', protect, admin, getZones);
 router.post('/zones', protect, admin, addZone);
 router.delete('/zones/:id', protect, admin, deleteZone);
-
-// HRM Management
-router.get('/test-hrm', (req, res) => res.json({ message: 'HRM Route is registered' }));
-router.get('/employees', protect, admin, getEmployees);
-router.post('/employees', protect, admin, addEmployee);
-router.delete('/employees/:id', protect, admin, deleteEmployee);
 
 module.exports = router;
 

@@ -27,6 +27,13 @@ const transactionSchema = new mongoose.Schema({
         enum: ['pending', 'completed', 'failed'],
         default: 'completed',
     },
+    bookingId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Booking'
+    },
+    description: {
+        type: String
+    },
     createdAt: {
         type: Date,
         default: Date.now,

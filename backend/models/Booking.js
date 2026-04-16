@@ -78,6 +78,19 @@ const bookingSchema = new mongoose.Schema({
         enum: ['now', 'after'],
         default: 'now'
     },
+    beforeImage: { type: String, default: null },
+    afterImage: { type: String, default: null },
+    extraCharges: [
+        {
+            item: { type: String },
+            amount: { type: Number }
+        }
+    ],
+    extraStatus: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'declined'],
+        default: 'none'
+    },
     adminCommission: { type: Number, default: 0 },
     providerPayout: { type: Number, default: 0 },
     employeeCommission: { type: Number, default: 0 },

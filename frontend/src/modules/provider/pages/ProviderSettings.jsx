@@ -1,89 +1,168 @@
+import { useState, useEffect } from "react";
 import ProviderTopNav from "@/modules/provider/components/ProviderTopNav";
 import ProviderBottomNav from "@/modules/provider/components/ProviderBottomNav";
-import { Link } from "react-router-dom";
-import { User, Building, Landmark, Lock, Bell, HelpCircle, FileText, ChevronRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { User, Building, Landmark, Lock, Bell, HelpCircle, FileText, ChevronRight, LogOut, Loader2, Power, Zap, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import API from "@/lib/api";
+import { motion } from "framer-motion";
 
 const ProviderSettings = () => {
+  const { logout } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [provider, setProvider] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const { data } = await API.get("/provider/profile");
+      setProvider(data);
+    } catch (err) {
+      toast({ title: "Sync Error", description: "Could not load profile settings.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (type) => {
+    setStatusLoading(true);
+    try {
+      const payload = type === 'online'
+        ? { isOnline: !provider.isOnline }
+        : { isEmergencyEnabled: !provider.isEmergencyEnabled };
+
+      const { data } = await API.patch("/provider/status", payload);
+      setProvider({ ...provider, ...data });
+      toast({
+        title: "Status Updated",
+        description: `${type === 'online' ? 'Visibility' : 'Emergency service'} changed successfully.`
+      });
+    } catch (err) {
+      toast({ title: "Update Failed", description: "Check your connection.", variant: "destructive" });
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    toast({ title: "Signed Out", description: "Session closed securely." });
+    navigate("/provider/login");
+  };
+
+  if (loading) return (
+    <div className="flex h-[100dvh] items-center justify-center">
+      <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+    </div>
+  );
+
   return (
     <div className="min-h-[100dvh] bg-background pb-20 md:pb-8">
       <ProviderTopNav />
-      <main className="container max-w-3xl px-4 py-6 md:py-8 space-y-6">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground">Account Settings</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">Manage your business profile, bank details, and app preferences.</p>
+      <main className="container max-w-2xl px-4 py-6 md:py-8 space-y-6">
+        {/* Profile Header Card */}
+        <section className="rounded-[32px] bg-card border border-border p-6 shadow-sm flex items-center gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-emerald-100 flex items-center justify-center border-2 border-white shadow-md overflow-hidden shrink-0">
+            {provider?.profileImage ? (
+              <img src={provider.profileImage} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xl font-black text-emerald-700">{provider?.ownerName?.charAt(0)}</span>
+            )}
+          </div>
+          <div className="text-left overflow-hidden">
+            <h2 className="text-lg font-black tracking-tighter text-foreground truncate">{provider?.ownerName}</h2>
+            <p className="text-xs text-muted-foreground font-bold flex items-center gap-1.5 truncate">
+              {provider?.shopName} • <span className="text-emerald-600 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> Verified</span>
+            </p>
+          </div>
+        </section>
+
+        {/* Live Status Toggles */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            disabled={statusLoading}
+            onClick={() => handleToggleStatus('online')}
+            className={`rounded-2xl p-4 border text-left transition-all ${provider?.isOnline ? 'bg-emerald-50 border-emerald-100' : 'bg-muted/30 border-border opacity-70'}`}
+          >
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center mb-2 ${provider?.isOnline ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'bg-muted text-muted-foreground'}`}>
+              <Power className="h-4 w-4" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Duty Status</p>
+            <h4 className={`text-sm font-black ${provider?.isOnline ? 'text-emerald-700' : 'text-foreground'}`}>
+              {provider?.isOnline ? 'ONLINE' : 'OFFLINE'}
+            </h4>
+          </button>
+
+          <button
+            disabled={statusLoading}
+            onClick={() => handleToggleStatus('emergency')}
+            className={`rounded-2xl p-4 border text-left transition-all ${provider?.isEmergencyEnabled ? 'bg-amber-50 border-amber-100' : 'bg-muted/30 border-border opacity-70'}`}
+          >
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center mb-2 ${provider?.isEmergencyEnabled ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' : 'bg-muted text-muted-foreground'}`}>
+              <Zap className="h-4 w-4" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">24/7 Service</p>
+            <h4 className={`text-sm font-black ${provider?.isEmergencyEnabled ? 'text-amber-700' : 'text-foreground'}`}>
+              {provider?.isEmergencyEnabled ? 'ACTIVE' : 'INACTIVE'}
+            </h4>
+          </button>
         </div>
 
         <div className="space-y-4 md:space-y-6">
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <h3 className="bg-muted/30 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">Business Information</h3>
+            <h3 className="bg-muted/30 px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-border text-left">Business Management</h3>
             <div className="divide-y divide-border">
               <Link to="/provider/profile" className="flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><User className="h-5 w-5" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Profile & Basic Info</h4>
-                    <p className="text-xs text-muted-foreground">Owner name, photo, phone</p>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600"><User className="h-5 w-5" /></div>
+                  <div className="text-left">
+                    <h4 className="text-sm font-bold text-foreground">Profile & Account</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium">Edit owner & shop information</p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-600 transition" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition" />
               </Link>
-              <Link to="/provider/profile" className="flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><Building className="h-5 w-5" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Business Details</h4>
-                    <p className="text-xs text-muted-foreground">Shop name, category, KYC, GST</p>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-600 transition" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <h3 className="bg-muted/30 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">Financial</h3>
-            <div className="divide-y divide-border">
               <Link to="/provider/wallet" className="flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600"><Landmark className="h-5 w-5" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Bank & Payout Details</h4>
-                    <p className="text-xs text-muted-foreground">Manage withdrawal methods</p>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 dark:bg-green-900/30 text-emerald-600"><Landmark className="h-5 w-5" /></div>
+                  <div className="text-left">
+                    <h4 className="text-sm font-bold text-foreground">Wallet & Payouts</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium">Bank details & earnings history</p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-600 transition" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition" />
               </Link>
             </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <h3 className="bg-muted/30 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">App Settings & Security</h3>
+            <h3 className="bg-muted/30 px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground border-b border-border text-left">Preferences</h3>
             <div className="divide-y divide-border">
-              <Link to="#" className="flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
+              <button disabled className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600"><Lock className="h-5 w-5" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Change Password</h4>
-                    <p className="text-xs text-muted-foreground">Update security credentials</p>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600"><Bell className="h-5 w-5" /></div>
+                  <div className="text-left">
+                    <h4 className="text-sm font-bold text-foreground">Notifications</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium">SMS & App notification alerts</p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-600 transition" />
-              </Link>
-              <Link to="#" className="flex items-center justify-between p-5 hover:bg-muted/30 transition-colors group">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600"><Bell className="h-5 w-5" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Notification Preferences</h4>
-                    <p className="text-xs text-muted-foreground">SMS, Email, and Push alerts</p>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-emerald-600 transition" />
-              </Link>
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 transition" />
+              </button>
             </div>
           </div>
 
-          <div className="flex justify-center pt-4 pb-2">
-             <button className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline">Request Account Deletion</button>
+          <div className="pt-2 space-y-3">
+            <button onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-50 dark:bg-rose-900/20 py-4 text-sm font-black text-rose-600 shadow-sm border border-rose-100 dark:border-rose-900/40 hover:bg-rose-100 transition-all active:scale-95">
+              <LogOut className="h-4 w-4" /> Sign Out Securely
+            </button>
+            <button className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-rose-600 transition-colors">Request Account Deletion</button>
           </div>
         </div>
       </main>

@@ -15,15 +15,25 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const supportRoutes = require('./routes/supportRoutes');
+
+const http = require('http');
+const path = require('path');
+const { initSocket } = require('./config/socket');
 
 // Connect to MongoDB
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+initSocket(server);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/sounds', express.static(path.join(__dirname, '/'))); // Serve root for sounds
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -36,6 +46,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/support', supportRoutes);
 
 app.get('/', (req, res) => {
     res.send('Rojsewa API is running...');
@@ -43,6 +54,6 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });

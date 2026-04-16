@@ -1,19 +1,22 @@
 import { motion } from "framer-motion";
 import { TrendingUp, CalendarDays, BarChart3, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import API from "@/lib/api";
 
 const EarningsWidget = () => {
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated } = useAuth();
 
   const fetchStats = async () => {
+    if (!isAuthenticated || !user) return;
     try {
       const { data } = await API.get("/provider/stats");
       setStats([
-        { title: "Today's Income", amount: `₹${data.today.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/40" },
-        { title: "This Week", amount: `₹${data.week.toLocaleString()}`, icon: CalendarDays, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/40" },
-        { title: "This Month", amount: `₹${data.month.toLocaleString()}`, icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/40" },
+        { title: "Today's Income", amount: `₹${data.today?.toLocaleString() || 0}`, icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/40" },
+        { title: "This Week", amount: `₹${data.week?.toLocaleString() || 0}`, icon: CalendarDays, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/40" },
+        { title: "This Month", amount: `₹${data.month?.toLocaleString() || 0}`, icon: BarChart3, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/40" },
       ]);
     } catch (err) {
       console.error("Failed to fetch stats", err);
@@ -23,8 +26,12 @@ const EarningsWidget = () => {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (isAuthenticated) {
+      fetchStats();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   if (loading) return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

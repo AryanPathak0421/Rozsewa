@@ -21,8 +21,8 @@ const dates = Array.from({ length: 7 }, (_, i) => {
 const timeSlots = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM"];
 
 const defaultAddresses = [
-  { id: 1, label: "Home", address: "123 MG Road, Lucknow, UP 226001", icon: "home" },
-  { id: 2, label: "Office", address: "456 Hazratganj, Lucknow, UP 226001", icon: "office" },
+  { id: 1, label: "Home", address: "123 MG Road, Lucknow, UP 226001", icon: "home", location: { type: "Point", coordinates: [80.9462, 26.8467] } },
+  { id: 2, label: "Office", address: "456 Hazratganj, Lucknow, UP 226001", icon: "office", location: { type: "Point", coordinates: [80.9462, 26.8467] } },
 ];
 
 const Checkout = () => {
@@ -38,10 +38,20 @@ const Checkout = () => {
   const [serviceNotes, setServiceNotes] = useState("");
   const [appliedCouponData, setAppliedCouponData] = useState(null);
 
+  const checkoutData = JSON.parse(localStorage.getItem("rozsewa_checkout_data")) || {
+    shopName: "Provider",
+    category: "General",
+    items: [{ name: "Demo Service", price: 499, qty: 1 }],
+    total: 499
+  };
+
+  const subtotal = checkoutData.total || 499;
+  const serviceNames = checkoutData.items?.length > 0 ? checkoutData.items.map(i => i.name).join(", ") : "General Service";
+
   // New features
   const [isExpress, setIsExpress] = useState(false);
   const [isRequestingQuote, setIsRequestingQuote] = useState(false);
-  const EXPRESS_FEE = 150;
+  const EXPRESS_FEE = checkoutData?.expressPrice || 0;
 
   // Address state (Sync with backend user)
   const [addresses, setAddresses] = useState([]);
@@ -96,15 +106,7 @@ const Checkout = () => {
     }
   };
 
-  const checkoutData = JSON.parse(localStorage.getItem("rozsewa_checkout_data")) || {
-    shopName: "Provider",
-    category: "General",
-    items: [{ name: "Demo Service", price: 499, qty: 1 }],
-    total: 499
-  };
 
-  const subtotal = checkoutData.total || 499;
-  const serviceNames = checkoutData.items?.length > 0 ? checkoutData.items.map(i => i.name).join(", ") : "General Service";
 
   let discount = 0;
   if (couponApplied && appliedCouponData) {
@@ -245,11 +247,7 @@ const Checkout = () => {
       if (!confirmQuote) return;
     }
 
-    if (paymentMode === "now") {
-      handleRazorpayPayment();
-    } else {
-      processBooking();
-    }
+    processBooking();
   };
 
   const handleRazorpayPayment = async () => {
@@ -310,8 +308,10 @@ const Checkout = () => {
             <Check className="h-12 w-12 text-emerald-500" />
           </motion.div>
           <div>
-            <h1 className="text-2xl font-black text-foreground">Booking Confirmed! 🎉</h1>
-            <p className="mt-2 text-sm font-medium text-muted-foreground leading-relaxed">Your service has been scheduled. A provider will be assigned shortly.</p>
+            <h1 className="text-2xl font-black text-foreground">Request Sent! 📡</h1>
+            <p className="mt-2 text-sm font-medium text-muted-foreground leading-relaxed">
+              We've sent your request to nearby providers. {paymentMode === "now" ? "Please check your alerts for a 'Pay Now' notification once a provider accepts your request." : "A provider will be assigned shortly."}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 space-y-3 text-left shadow-sm">
@@ -334,7 +334,7 @@ const Checkout = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment</span>
-              <span className="text-sm font-black text-foreground">{paymentMode === "now" ? "Paid Online" : "Pay After Service"}</span>
+              <span className="text-sm font-black text-foreground">{paymentMode === "now" ? "Online (Wait for Acceptance)" : "Pay After Service"}</span>
             </div>
           </div>
 
@@ -370,17 +370,19 @@ const Checkout = () => {
         </div>
 
         {/* Feature Toggles */}
-        <section className="grid grid-cols-2 gap-3">
-          <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setIsExpress(true); setIsRequestingQuote(false); }}
-            className={`relative flex cursor-pointer flex-col p-4 rounded-2xl border-2 transition-all ${isExpress ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-border bg-card hover:border-border/80"
-              }`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className={`p-1.5 rounded-xl ${isExpress ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}><Zap className="h-4 w-4" /></div>
-              {isExpress && <Check className="h-4 w-4 text-amber-500" />}
-            </div>
-            <h3 className="text-sm font-black text-foreground">Express Service</h3>
-            <p className="text-[10px] font-bold text-muted-foreground leading-tight mt-1">Get it done within 45 mins (+₹{EXPRESS_FEE})</p>
-          </motion.div>
+        <section className={`grid gap-3 ${EXPRESS_FEE > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {EXPRESS_FEE > 0 && (
+            <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setIsExpress(true); setIsRequestingQuote(false); }}
+              className={`relative flex cursor-pointer flex-col p-4 rounded-2xl border-2 transition-all ${isExpress ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-border bg-card hover:border-border/80"
+                }`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-1.5 rounded-xl ${isExpress ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}><Zap className="h-4 w-4" /></div>
+                {isExpress && <Check className="h-4 w-4 text-amber-500" />}
+              </div>
+              <h3 className="text-sm font-black text-foreground">Express Service</h3>
+              <p className="text-[10px] font-bold text-muted-foreground leading-tight mt-1">Get it done within 45 mins (+₹{EXPRESS_FEE})</p>
+            </motion.div>
+          )}
 
           <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setIsRequestingQuote(true); setIsExpress(false); setPaymentMode("after"); }}
             className={`relative flex cursor-pointer flex-col p-4 rounded-2xl border-2 transition-all ${isRequestingQuote ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10" : "border-border bg-card hover:border-border/80"
@@ -539,7 +541,7 @@ const Checkout = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-black/20 px-4 py-2 text-sm font-bold uppercase tracking-wider">
-            {isRequestingQuote ? "Submit" : "Confirm"} <ArrowLeft className="h-4 w-4 rotate-180" />
+            {isRequestingQuote ? "Submit" : "Send Request"} <ArrowLeft className="h-4 w-4 rotate-180" />
           </div>
         </motion.button>
       </div>

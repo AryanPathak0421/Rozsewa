@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Phone, MessageCircle, AlertOctagon, Check, Clock, User, Star, Shield } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, AlertOctagon, Check, Clock, User, Star, Shield, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TopNav from "@/modules/user/components/TopNav";
 import BottomNav from "@/modules/user/components/BottomNav";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 import API from "@/lib/api";
 
 const steps = [
@@ -25,6 +26,73 @@ const LiveTracking = () => {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [showOTP, setShowOTP] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const { user } = useAuth();
+  const [isPaying, setIsPaying] = useState(false);
+
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRazorpayPayment = async () => {
+    if (!bookingDetails) return;
+    setIsPaying(true);
+    const res = await loadRazorpay();
+
+    if (!res) {
+      toast({ title: "SDK failed to load.", variant: "destructive" });
+      setIsPaying(false);
+      return;
+    }
+
+    try {
+      const { data: order } = await API.post("/payment/order", {
+        amount: bookingDetails.totalAmount,
+        currency: "INR"
+      });
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_8sYbzHWidwe5Zw",
+        amount: order.amount,
+        currency: order.currency,
+        name: "RozSewa",
+        description: `Payment for ${bookingDetails.serviceName}`,
+        order_id: order.id,
+        handler: async (response) => {
+          try {
+            const { data: verification } = await API.post("/payment/verify", {
+              ...response,
+              bookingId: bookingDetails._id
+            });
+            if (verification.success) {
+              toast({ title: "Payment Successful!", description: "Your booking is now fully confirmed." });
+              fetchBookingStatus(); // Refresh to update paymentStatus
+            }
+          } catch (err) {
+            toast({ title: "Verification Failed", variant: "destructive" });
+          }
+        },
+        prefill: {
+          name: user?.name,
+          email: user?.email,
+          contact: user?.mobile,
+        },
+        theme: { color: "#10b981" },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
+    } catch (err) {
+      toast({ title: "Payment Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -60,8 +128,9 @@ const LiveTracking = () => {
       setProviderInfo({
         name: bookingDetails.providerId.shopName || bookingDetails.providerId.ownerName || "Technician",
         rating: bookingDetails.providerId.rating || 4.8,
-        jobs: bookingDetails.providerId.jobsCompleted || 150,
-        mobile: bookingDetails.providerId.phoneNumber || ""
+        jobs: bookingDetails.providerId.reviewCount || 0,
+        mobile: bookingDetails.providerId.mobile || "",
+        profileImage: bookingDetails.providerId.profileImage
       });
     }
   }, [bookingDetails]);
@@ -130,6 +199,31 @@ const LiveTracking = () => {
           )}
         </div>
 
+        {/* Payment Required Warning */}
+        {bookingDetails?.paymentMode === 'now' && bookingDetails?.paymentStatus === 'pending' && bookingDetails?.status !== 'pending' && (
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="rounded-2xl border-2 border-emerald-500 bg-emerald-500/10 p-5 flex flex-col items-center gap-4 text-center shadow-lg shadow-emerald-500/10"
+          >
+            <div className="h-12 w-12 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-xl">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-emerald-700">Payment Required!</h3>
+              <p className="text-xs font-bold text-emerald-600/80 mt-1 uppercase tracking-wider">Provider has accepted your request</p>
+              <p className="text-sm font-medium text-foreground mt-2">Please complete the payment of <span className="font-black">₹{bookingDetails.totalAmount}</span> to proceed with the service.</p>
+            </div>
+            <button
+              onClick={handleRazorpayPayment}
+              disabled={isPaying}
+              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+            >
+              {isPaying ? "Processing..." : <>Confirm & Pay <ArrowLeft className="h-4 w-4 rotate-180" /></>}
+            </button>
+          </motion.div>
+        )}
+
         {/* Technician Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -137,8 +231,14 @@ const LiveTracking = () => {
           className="rounded-2xl border border-border bg-card p-5 shadow-sm"
         >
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-xl font-bold text-primary">
-              {providerInfo.name.substring(0, 2).toUpperCase()}
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-primary/10 border border-border">
+              {providerInfo.profileImage ? (
+                <img src={providerInfo.profileImage} alt={providerInfo.name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xl font-bold text-primary">
+                  {providerInfo.name.substring(0, 2).toUpperCase()}
+                </div>
+              )}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">

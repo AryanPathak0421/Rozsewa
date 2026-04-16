@@ -2,6 +2,8 @@ const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
 const Provider = require('../models/Provider');
 const Employee = require('../models/Employee');
+const { emitToProvider } = require('../config/socket');
+const mongoose = require('mongoose');
 
 // @desc    Create new booking
 // @route   POST /api/bookings
@@ -26,19 +28,69 @@ const createBooking = async (req, res) => {
         });
 
         if (booking) {
-            console.log(`Booking Created: ID=${booking._id}, Provider=${providerId}, User=${req.user._id}`);
-            // Send Notification to Provider
-            await Notification.create({
-                recipientId: providerId,
-                recipientModel: 'Provider',
-                title: 'New Booking Received!',
-                message: `You have a new booking for ${serviceName} on ${bookingDate} at ${bookingTime}.`,
-                type: 'booking',
-                bookingId: booking._id
-            });
-            console.log(`Notification sent to Provider: ${providerId}`);
+            console.log(`Booking Created: ID=${booking._id}, User=${req.user._id}`);
 
-            res.status(201).json(booking);
+            // Radius-based dispatching (15km)
+            const radiusInKm = 15;
+            const radiusInRadians = radiusInKm / 6371;
+
+            let providersToNotify = [];
+            console.log('--- RADIUS DISPATCH DEBUG ---');
+            console.log('Booking Location:', booking.location);
+
+            if (!booking.location || !booking.location.coordinates || booking.location.coordinates.length < 2) {
+                console.log('FAILED: Booking has no valid coordinates. Dispatching to ALL online providers as fallback...');
+                providersToNotify = await Provider.find({ status: 'verified', isOnline: true });
+            } else {
+                providersToNotify = await Provider.find({
+                    status: 'verified',
+                    isOnline: true,
+                    location: {
+                        $geoWithin: {
+                            $centerSphere: [booking.location.coordinates, radiusInRadians]
+                        }
+                    }
+                });
+            }
+
+            console.log(`Providers Found: ${providersToNotify.length}`);
+
+            const io = require('../config/socket').getIO();
+            for (const provider of providersToNotify) {
+                console.log(`Sending notification to Provider ID: ${provider._id}`);
+                // Socket notification
+                io.to(`provider_${provider._id}`).emit('NEW_BOOKING_REQUEST', {
+                    bookingId: booking._id,
+                    serviceName: booking.serviceName,
+                    amount: booking.totalAmount,
+                    address: booking.address,
+                    userName: req.user.name,
+                    paymentMode: booking.paymentMode,
+                    expiresAt: new Date(Date.now() + 2 * 60 * 1000)
+                });
+
+                // Persistence (Optional but good) - assuming Notification model exists
+                try {
+                    const Notification = require('../models/Notification');
+                    await Notification.create({
+                        recipientId: provider._id,
+                        recipientModel: 'Provider',
+                        title: 'Urgent: Service Request!',
+                        message: `New request for ${booking.serviceName} at ${booking.address}`,
+                        type: 'booking',
+                        bookingId: booking._id
+                    });
+                } catch (err) {
+                    console.log('Notification persistence failed (skipping):', err.message);
+                }
+            }
+
+            console.log('--- END DEBUG ---');
+
+            res.status(201).json({
+                booking,
+                notifiedCount: providersToNotify.length
+            });
         } else {
             res.status(400).json({ message: 'Invalid booking data' });
         }
@@ -52,7 +104,9 @@ const createBooking = async (req, res) => {
 // @access  Private
 const getUserBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find({ userId: req.user._id }).sort({ createdAt: -1 });
+        const bookings = await Booking.find({ userId: req.user._id })
+            .populate('providerId', 'shopName ownerName rating mobile profileImage')
+            .sort({ createdAt: -1 });
         res.json(bookings);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -141,6 +195,20 @@ const updateBookingStatusByProvider = async (req, res) => {
 
             booking.status = newStatus;
             const updatedBooking = await booking.save();
+
+            // If confirmed, notify other potential providers to stop their alarms
+            if (newStatus === 'confirmed') {
+                const io = require('../config/socket').getIO();
+                // We don't have the original dispatch list here easily, 
+                // but we can broadcast it or just rely on the fact that 
+                // it emits to a room or we can find who was notified.
+                // For simplicity, we can emit a global event for this booking ID
+                // or use a 'dispatch' room if we had one.
+                // Since each provider is in their own room, we broadcast to everyone
+                // or we could track notified providers in the booking model.
+                io.emit('BOOKING_TAKEN', { bookingId: booking._id.toString() });
+            }
+
             res.json(updatedBooking);
         } else {
             res.status(404).json({ message: 'Booking not found' });
@@ -154,7 +222,7 @@ const updateBookingStatusByProvider = async (req, res) => {
 // @route   POST /api/bookings/:id/start
 // @access  Private (Provider)
 const verifyStartOTP = async (req, res) => {
-    const { otp } = req.body;
+    const { otp, beforeImage } = req.body;
     try {
         const booking = await Booking.findById(req.params.id);
 
@@ -168,8 +236,14 @@ const verifyStartOTP = async (req, res) => {
                 return res.status(401).json({ message: 'Not authorized' });
             }
 
+            // Payment check for Online Payments
+            if (booking.paymentMode === 'now' && booking.paymentStatus !== 'paid') {
+                return res.status(400).json({ message: 'Customer has not paid yet. Please ask them to pay from their app.' });
+            }
+
             if (booking.startOTP === otp) {
                 booking.status = 'started';
+                booking.beforeImage = beforeImage;
                 await booking.save();
                 res.json({ message: 'Service started successfully', status: 'started' });
             } else {
@@ -187,7 +261,7 @@ const verifyStartOTP = async (req, res) => {
 // @route   POST /api/bookings/:id/complete
 // @access  Private (Provider)
 const verifyEndOTP = async (req, res) => {
-    const { otp } = req.body;
+    const { otp, afterImage } = req.body;
     try {
         const booking = await Booking.findById(req.params.id);
         if (booking) {
@@ -199,6 +273,18 @@ const verifyEndOTP = async (req, res) => {
                 // Update Provider stats and Commission logic
                 const provider = await Provider.findById(booking.providerId);
 
+                const Setting = require('../models/Setting');
+                let commissionRate = 10; // Default fallback
+
+                try {
+                    const commissionSetting = await Setting.findOne({ key: 'commissionRate' });
+                    if (commissionSetting) {
+                        commissionRate = parseFloat(commissionSetting.value);
+                    }
+                } catch (err) {
+                    console.log("Error fetching global commission setting, using default 10%");
+                }
+
                 let adminCommission = 0;
                 let providerPayout = booking.totalAmount;
                 let commissionStatus = 'free';
@@ -206,7 +292,7 @@ const verifyEndOTP = async (req, res) => {
                 if (provider.freeServicesLeft > 0) {
                     provider.freeServicesLeft -= 1;
                 } else {
-                    const rate = provider.commissionRate || 10;
+                    const rate = provider.commissionRate || commissionRate;
                     adminCommission = (booking.totalAmount * rate) / 100;
                     providerPayout = booking.totalAmount - adminCommission;
                     commissionStatus = 'commissioned';
@@ -214,14 +300,34 @@ const verifyEndOTP = async (req, res) => {
 
                 // Update booking with commission details
                 booking.status = 'completed';
+                booking.afterImage = afterImage;
                 booking.adminCommission = adminCommission;
                 booking.providerPayout = providerPayout;
                 booking.commissionStatus = commissionStatus;
 
-                // Update provider wallet
-                provider.walletBalance += providerPayout;
+                // Update provider wallet and record transaction
+                const { Wallet, Transaction } = require('../models/Wallet');
+                let wallet = await Wallet.findOne({ providerId: provider._id });
+                if (!wallet) {
+                    wallet = await Wallet.create({ providerId: provider._id, balance: 0 });
+                }
 
-                await Promise.all([booking.save(), provider.save()]);
+                wallet.balance += providerPayout;
+                wallet.updatedAt = Date.now();
+
+                const transaction = await Transaction.create({
+                    providerId: provider._id,
+                    title: `Service Earnings: ${booking.serviceName}`,
+                    amount: providerPayout,
+                    type: 'credit',
+                    status: 'completed',
+                    bookingId: booking._id,
+                    description: commissionStatus === 'free' ? 'Zero Commission Booking (Free Plan)' : `Commission Applied (${provider.commissionRate || commissionRate}%)`
+                });
+
+                provider.walletBalance = wallet.balance;
+
+                await Promise.all([booking.save(), provider.save(), wallet.save()]);
 
                 res.json({
                     message: 'Service completed successfully',

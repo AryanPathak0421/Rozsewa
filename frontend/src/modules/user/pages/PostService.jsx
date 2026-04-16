@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Upload, Camera, Check, Star, Gift } from "lucide-react";
+import { ArrowLeft, Upload, Camera, Check, Star, Gift, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TopNav from "@/modules/user/components/TopNav";
+import { useToast } from "@/components/ui/use-toast";
+import API from "@/lib/api";
 import BottomNav from "@/modules/user/components/BottomNav";
 
 const tags = ["On Time", "Clean Work", "Polite", "Professional", "Affordable", "Expert"];
 
 const PostService = () => {
   const navigate = useNavigate();
-  const [beforeImg, setBeforeImg] = useState(null);
-  const [afterImg, setAfterImg] = useState(null);
-  const [showApproval, setShowApproval] = useState(true);
+  const { toast } = useToast();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [showApproval, setShowApproval] = useState(false);
   const [approved, setApproved] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -19,17 +23,42 @@ const PostService = () => {
   const [review, setReview] = useState("");
   const [paymentDone, setPaymentDone] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  
-  const allBookings = JSON.parse(localStorage.getItem("rozsewa_bookings") || "[]");
-  const currentBooking = allBookings.find(b => b.status === "active" || b.status === "completed") || allBookings[0] || { amount: 497 };
-  const baseAmount = currentBooking.amount || 497;
-  const extraAmount = approved ? 1250 : 0;
-  const finalTotal = baseAmount + extraAmount;
 
-  const handleImageUpload = (type) => {
-    const url = "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=300&h=300&fit=crop";
-    if (type === "before") setBeforeImg(url);
-    else setAfterImg(url);
+  const fetchBooking = async () => {
+    try {
+      const { data } = await API.get('/bookings');
+      // Most recent completed or started booking
+      const active = data.find(b => ['completed', 'started'].includes(b.status));
+      if (active) {
+        setBooking(active);
+        setPaymentDone(active.paymentStatus === 'paid');
+        if (active.extraStatus === 'pending') setShowApproval(true);
+        if (active.extraStatus === 'approved') setApproved(true);
+      }
+    } catch (err) {
+      console.error("Fetch failed", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBooking();
+  }, []);
+
+  const extraTotal = booking?.extraCharges?.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const baseAmount = booking?.totalAmount || 0;
+  const finalTotal = baseAmount + (approved ? extraTotal : 0);
+
+  const handleExtraAction = async (status) => {
+    try {
+      await API.patch(`/bookings/${booking._id}/status`, { extraStatus: status });
+      if (status === 'approved') setApproved(true);
+      setShowApproval(false);
+      fetchBooking();
+    } catch (err) {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
   };
 
   const handlePayment = () => {
@@ -37,6 +66,23 @@ const PostService = () => {
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 3000);
   };
+
+  if (loading) return (
+    <div className="flex h-screen flex-col items-center justify-center space-y-4 bg-background">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Generating Service Summary...</p>
+    </div>
+  );
+
+  if (!booking) return (
+    <div className="flex h-screen flex-col items-center justify-center space-y-4 bg-background p-10 text-center">
+      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-2">
+        <ArrowLeft className="h-8 w-8 text-muted-foreground opacity-40" />
+      </div>
+      <p className="text-sm font-bold text-muted-foreground">No active service record found.</p>
+      <button onClick={() => navigate('/')} className="text-[10px] font-black uppercase text-primary tracking-widest bg-primary/5 px-6 py-2 rounded-full">Back to Home</button>
+    </div>
+  );
 
   const toggleTag = (tag) => {
     setSelectedTags((prev) =>
@@ -63,22 +109,22 @@ const PostService = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Before Work", img: beforeImg, type: "before" },
-              { label: "After Work", img: afterImg, type: "after" },
-            ].map(({ label, img, type }) => (
-              <motion.button
-                key={type}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleImageUpload(type)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/50 p-6 transition-colors hover:border-primary hover:bg-primary/5"
+              { label: "Before Work", img: booking?.beforeImage },
+              { label: "After Work", img: booking?.afterImage },
+            ].map(({ label, img }) => (
+              <div
+                key={label}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/50 p-6"
               >
                 {img ? (
-                  <img src={img} alt={label} className="h-20 w-20 rounded-lg object-cover" />
+                  <img src={img} alt={label} className="h-20 w-20 rounded-lg object-cover cursor-pointer" onClick={() => window.open(img, '_blank')} />
                 ) : (
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <div className="h-20 w-20 flex items-center justify-center bg-muted rounded-lg border border-border">
+                    <Check className="h-6 w-6 text-muted-foreground opacity-20" />
+                  </div>
                 )}
-                <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-              </motion.button>
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</span>
+              </div>
             ))}
           </div>
         </section>
@@ -94,33 +140,31 @@ const PostService = () => {
             >
               <h3 className="text-sm font-bold text-foreground">Extra Charges Added</h3>
               <p className="mt-1 text-xs text-muted-foreground">Technician added spare parts cost</p>
-              <div className="mt-3 rounded-xl bg-card p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Capacitor (1.5 ton)</span>
-                  <span className="font-bold text-foreground">₹450</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-muted-foreground">Gas Refill</span>
-                  <span className="font-bold text-foreground">₹800</span>
-                </div>
+              <div className="mt-3 rounded-xl bg-card p-3 text-sm space-y-2">
+                {booking?.extraCharges?.map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="text-muted-foreground">{item.item}</span>
+                    <span className="font-bold text-foreground">₹{item.amount}</span>
+                  </div>
+                ))}
                 <div className="border-t border-border mt-2 pt-2 flex justify-between">
                   <span className="font-bold text-foreground">Extra Total</span>
-                  <span className="font-extrabold text-secondary-foreground">₹1,250</span>
+                  <span className="font-extrabold text-secondary-foreground">₹{extraTotal}</span>
                 </div>
               </div>
               <div className="mt-4 flex gap-3">
                 <button
-                  onClick={() => setShowApproval(false)}
+                  onClick={() => handleExtraAction('declined')}
                   className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
                 >
                   Decline
                 </button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => { setApproved(true); setShowApproval(false); }}
+                  onClick={() => handleExtraAction('approved')}
                   className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground"
                 >
-                  Approve ₹1,250
+                  Approve ₹{extraTotal}
                 </motion.button>
               </div>
             </motion.div>
@@ -214,9 +258,8 @@ const PostService = () => {
                   onClick={() => setRating(s)}
                 >
                   <Star
-                    className={`h-10 w-10 transition-colors ${
-                      s <= (hoveredStar || rating) ? "fill-secondary text-secondary" : "text-border"
-                    }`}
+                    className={`h-10 w-10 transition-colors ${s <= (hoveredStar || rating) ? "fill-secondary text-secondary" : "text-border"
+                      }`}
                   />
                 </motion.button>
               ))}
@@ -227,11 +270,10 @@ const PostService = () => {
                   key={tag}
                   whileTap={{ scale: 0.93 }}
                   onClick={() => toggleTag(tag)}
-                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-                    selectedTags.includes(tag)
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border bg-background text-foreground hover:bg-muted"
-                  }`}
+                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${selectedTags.includes(tag)
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-foreground hover:bg-muted"
+                    }`}
                 >
                   {tag}
                 </motion.button>

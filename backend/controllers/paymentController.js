@@ -30,7 +30,7 @@ const createOrder = async (req, res) => {
 // @route   POST /api/payment/verify
 // @access  Public / Private
 const verifyPayment = async (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
 
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
@@ -39,6 +39,11 @@ const verifyPayment = async (req, res) => {
         .digest("hex");
 
     if (razorpay_signature === expectedSign) {
+        // If bookingId is provided, update the booking status
+        if (bookingId) {
+            const Booking = require('../models/Booking');
+            await Booking.findByIdAndUpdate(bookingId, { paymentStatus: 'paid' });
+        }
         res.json({ message: "Payment verified successfully", success: true });
     } else {
         res.status(400).json({ message: "Invalid signature", success: false });

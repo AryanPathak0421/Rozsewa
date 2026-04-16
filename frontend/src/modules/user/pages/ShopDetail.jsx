@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Star, BadgeCheck, MapPin, Phone, MessageCircle, Plus, Minus, ShoppingCart, ShieldCheck, Camera, CheckCircle2, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, Star, BadgeCheck, MapPin, Phone, MessageCircle, Plus, Minus, ShoppingCart, ShieldCheck, Camera, CheckCircle2, ChevronDown, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import TopNav from "@/modules/user/components/TopNav";
 import BottomNav from "@/modules/user/components/BottomNav";
@@ -68,7 +68,8 @@ const ShopDetail = () => {
           image: found.profileImage || defaultProviderFallback.image,
           about: found.about || defaultProviderFallback.about,
           qualifications: found.qualifications?.length > 0 ? found.qualifications : defaultProviderFallback.qualifications,
-          warranty: found.warranty || defaultProviderFallback.warranty
+          warranty: found.warranty || defaultProviderFallback.warranty,
+          isOnline: found.isOnline !== undefined ? found.isOnline : true
         });
       }
 
@@ -81,6 +82,7 @@ const ShopDetail = () => {
         duration: s.duration || "30 min",
         image: s.image,
         serviceType: s.serviceType || "home",
+        expressPrice: s.pricing?.express || 0,
         plans: [
           { id: `${s._id}-basic`, name: "Basic", price: s.pricing?.basic || 299, desc: "Standard service" },
           ...(s.pricing?.standard ? [{ id: `${s._id}-standard`, name: "Standard", price: s.pricing.standard, desc: "Enhanced service" }] : []),
@@ -117,7 +119,7 @@ const ShopDetail = () => {
   const getPlanDetails = (planId) => {
     for (const s of servicesList) {
       const p = s.plans.find(pl => pl.id === planId);
-      if (p) return { serviceName: s.name, planName: p.name, price: p.price, duration: s.duration };
+      if (p) return { serviceName: s.name, planName: p.name, price: p.price, duration: s.duration, expressPrice: s.expressPrice };
     }
     return null;
   };
@@ -129,15 +131,18 @@ const ShopDetail = () => {
   }, 0);
 
   const handleCheckout = () => {
+    let maxExpress = 0;
     const items = Object.entries(cart).map(([id, qty]) => {
       const d = getPlanDetails(id);
-      return { id, name: `${d.serviceName} (${d.planName})`, price: d.price, qty, duration: d.duration };
+      if (d.expressPrice > maxExpress) maxExpress = d.expressPrice;
+      return { id, name: `${d.serviceName} (${d.planName})`, price: d.price, qty, duration: d.duration, expressPrice: d.expressPrice };
     });
     localStorage.setItem("rozsewa_checkout_data", JSON.stringify({
       providerId: provider?.id,
       shopName: provider?.name,
       category: provider?.category,
       items,
+      expressPrice: maxExpress,
       total: cartTotal
     }));
     navigate("/checkout");
@@ -176,6 +181,11 @@ const ShopDetail = () => {
               <div className="mt-1.5 flex items-center gap-4 text-xs font-semibold text-white/90">
                 <span className="flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-amber-300 backdrop-blur-md"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {provider.rating} ({provider.reviews})</span>
                 <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 opacity-70" /> {provider.address}</span>
+                {!provider.isOnline && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-[10px] font-black uppercase text-white shadow-lg shadow-rose-500/20">
+                    <X className="h-3 w-3" /> Offline
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -357,15 +367,19 @@ const ShopDetail = () => {
         {cartCount > 0 && (
           <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-20 left-0 right-0 z-40 p-4 md:bottom-4 flex justify-center pointer-events-none">
             <div className="w-full max-w-2xl pointer-events-auto">
-              <motion.button onClick={handleCheckout} className="flex w-full items-center justify-between rounded-2xl bg-foreground px-6 py-4 shadow-2xl shadow-black/20 group">
+              <div className="flex w-full items-center justify-between rounded-2xl bg-foreground px-6 py-4 shadow-2xl shadow-black/20 group">
                 <div className="flex flex-col text-left">
                   <span className="text-xs font-semibold text-background/70">{cartCount} items selected</span>
                   <span className="text-lg font-black text-background">₹{cartTotal}</span>
                 </div>
-                <div className="flex items-center gap-2 rounded-xl bg-background/10 px-4 py-2 text-sm font-bold text-background group-hover:bg-background/20 transition-all">
-                  Next <ArrowLeft className="h-4 w-4 rotate-180" />
-                </div>
-              </motion.button>
+                <button
+                  onClick={handleCheckout}
+                  disabled={!provider.isOnline}
+                  className={`flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-all ${!provider.isOnline ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed' : 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700 active:scale-95'}`}
+                >
+                  {!provider.isOnline ? 'Currently Offline' : 'Next'} <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

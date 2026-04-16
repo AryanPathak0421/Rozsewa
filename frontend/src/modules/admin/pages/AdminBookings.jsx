@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Search, Download, CalendarDays, IndianRupee, MapPin, Loader2, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Search, Download, CalendarDays, IndianRupee, MapPin, Loader2, Clock, CheckCircle, XCircle, Image } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import API from "@/lib/api";
@@ -136,6 +136,7 @@ const AdminBookings = () => {
                 <th className="py-5 px-6">Tracking Details</th>
                 <th className="py-5 px-6">Customer</th>
                 <th className="py-5 px-6">Assigned Provider</th>
+                <th className="py-5 px-6">Work Proof</th>
                 <th className="py-5 px-6">Total Payout</th>
                 <th className="py-5 px-6">Flow Status</th>
               </tr>
@@ -167,6 +168,30 @@ const AdminBookings = () => {
                           {booking.serviceName}
                         </span>
                         <p className="text-[10px] font-bold text-gray-500 tracking-tight truncate max-w-[200px]">via {booking.providerId?.shopName || 'Assigned Vendor'}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex gap-2">
+                        {booking.beforeImage ? (
+                          <div className="group/img relative h-10 w-10 overflow-hidden rounded-lg border border-gray-200 shadow-sm cursor-zoom-in">
+                            <img src={booking.beforeImage} alt="Before" className="h-full w-full object-cover transition-transform group-hover/img:scale-125" onClick={() => window.open(booking.beforeImage, '_blank')} />
+                            <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] font-black text-white text-center py-0.5">BEFORE</span>
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-gray-50 border border-dashed border-gray-200 text-gray-300">
+                            <Image className="h-4 w-4" />
+                          </div>
+                        )}
+                        {booking.afterImage ? (
+                          <div className="group/img relative h-10 w-10 overflow-hidden rounded-lg border border-gray-200 shadow-sm cursor-zoom-in">
+                            <img src={booking.afterImage} alt="After" className="h-full w-full object-cover transition-transform group-hover/img:scale-125" onClick={() => window.open(booking.afterImage, '_blank')} />
+                            <span className="absolute bottom-0 left-0 right-0 bg-emerald-600/90 text-[8px] font-black text-white text-center py-0.5">AFTER</span>
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-gray-50 border border-dashed border-gray-200 text-gray-300">
+                            <Image className="h-4 w-4" />
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="py-4 px-6">

@@ -29,18 +29,30 @@ const registerProvider = async (req, res) => {
             // Find referring vendor and give them 3 more free services
             const referringVendor = await Provider.findOne({ vendorCode: referredBy });
             if (referringVendor) {
-                referringVendor.freeServicesLeft += 3;
+                referringVendor.freeServicesLeft = (referringVendor.freeServicesLeft || 0) + 3;
                 await referringVendor.save();
+                console.log(`Referral Bonus: 3 free services added to Provider ${referringVendor.vendorCode}`);
+            } else {
+                console.log(`Warning: Referring vendor ${referredBy} not found.`);
             }
         } else if (registrationType === 'employee' && referredBy) {
             // Find employee and update stats
             const employee = await Employee.findOne({ employeeId: referredBy });
             if (employee) {
-                employee.referralCount += 1;
-                employee.totalEarnings += employee.registrationCommission;
+                employee.referralCount = (employee.referralCount || 0) + 1;
+                employee.totalEarnings = (employee.totalEarnings || 0) + (employee.registrationCommission || 50);
                 await employee.save();
+                console.log(`Employee Bonus: Commission added to Employee ${employee.employeeId}`);
+            } else {
+                console.log(`Warning: Referring employee ${referredBy} not found.`);
             }
         }
+
+        // Prepare initial documents array from registration data
+        const initialDocs = [];
+        if (kycAadhaarPhoto) initialDocs.push({ id: 'aadhaar', url: kycAadhaarPhoto, status: 'pending', fileName: 'Aadhaar_Registration.jpg' });
+        if (kycPanPhoto) initialDocs.push({ id: 'pan', url: kycPanPhoto, status: 'pending', fileName: 'PAN_Registration.jpg' });
+        if (gst) initialDocs.push({ id: 'gst', url: gst, status: 'pending', fileName: 'GST_Registration.jpg' });
 
         const provider = await Provider.create({
             mobile,
@@ -64,6 +76,7 @@ const registerProvider = async (req, res) => {
             registrationType: registrationType || 'individual',
             referredBy: referredBy || null,
             freeServicesLeft,
+            documents: initialDocs,
             location: req.body.location,
             status: 'pending' // Verification required by admin
         });
@@ -128,6 +141,30 @@ const getProviderProfile = async (req, res) => {
         const provider = await Provider.findById(req.user._id);
 
         if (provider) {
+            // Auto-sync legacy documents to the new array if it's empty
+            if (!provider.documents || provider.documents.length === 0) {
+                let changed = false;
+                if (provider.kycAadhaarPhoto) { provider.documents.push({ id: 'aadhaar', url: provider.kycAadhaarPhoto, status: 'pending', fileName: 'Aadhaar_Registration.jpg' }); changed = true; }
+                if (provider.kycPanPhoto) { provider.documents.push({ id: 'pan', url: provider.kycPanPhoto, status: 'pending', fileName: 'PAN_Registration.jpg' }); changed = true; }
+                if (provider.gst && provider.gst.startsWith('http')) { provider.documents.push({ id: 'gst', url: provider.gst, status: 'pending', fileName: 'GST_Registration.jpg' }); changed = true; }
+
+                if (changed) await provider.save();
+            }
+
+            // Fix for existing providers: If they are verified, their registration docs should be marked verified
+            if (provider.status === 'verified') {
+                let statusFixed = false;
+                provider.documents.forEach(doc => {
+                    if (doc.status === 'pending') {
+                        doc.status = 'verified';
+                        statusFixed = true;
+                    }
+                });
+                if (statusFixed || !provider.kycVerified) {
+                    provider.kycVerified = true;
+                    await provider.save();
+                }
+            }
             res.json(provider);
         } else {
             res.status(404).json({ message: 'Provider not found' });
@@ -257,6 +294,49 @@ const checkProviderExistence = async (req, res) => {
     }
 };
 
+// @desc    Upload KYC Document
+// @route   POST /api/provider/documents
+// @access  Private (Provider)
+const uploadDocument = async (req, res) => {
+    try {
+        const { docId } = req.body;
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const provider = await Provider.findById(req.user._id);
+        if (!provider) {
+            return res.status(404).json({ message: 'Provider not found' });
+        }
+
+        // Check if document of this type already exists
+        const docIndex = provider.documents.findIndex(d => d.id === docId);
+
+        const newDoc = {
+            id: docId,
+            url: req.file.path,
+            status: 'pending',
+            fileName: req.file.originalname,
+            uploadedAt: Date.now()
+        };
+
+        if (docIndex > -1) {
+            provider.documents[docIndex] = newDoc;
+        } else {
+            provider.documents.push(newDoc);
+        }
+
+        await provider.save();
+
+        res.json({
+            message: 'Document uploaded successfully',
+            document: newDoc
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerProvider,
     authProvider,
@@ -265,4 +345,5 @@ module.exports = {
     updateProviderProfile,
     getProviderStats,
     checkProviderExistence,
+    uploadDocument,
 };

@@ -3,6 +3,19 @@ const Category = require('../models/Category');
 const Provider = require('../models/Provider');
 const Service = require('../models/Service');
 const Coupon = require('../models/Coupon');
+const Zone = require('../models/Zone');
+
+// @desc    Get all active zones/cities
+// @route   GET /api/public/zones
+// @access  Public
+const getPublicZones = async (req, res) => {
+    try {
+        const zones = await Zone.find({ isActive: true }).sort({ name: 1 });
+        res.json(zones);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
 // @desc    Get all active banners for home page
 // @route   GET /api/public/banners
@@ -47,7 +60,7 @@ const getPublicCategories = async (req, res) => {
 const getPublicProviderById = async (req, res) => {
     try {
         const provider = await Provider.findById(req.params.id)
-            .select('name shopName ownerName mobile profileImage vendorType vendorCode rating joins reviews status joinedDate reviewCount address about qualifications warranty')
+            .select('name shopName ownerName mobile profileImage vendorType vendorCode rating joins reviews status joinedDate reviewCount address about qualifications warranty isOnline')
             .populate('vendorType', 'name icon');
 
         if (!provider) {
@@ -65,7 +78,7 @@ const getPublicProviderById = async (req, res) => {
 const getFeaturedProviders = async (req, res) => {
     try {
         const { lat, lng, radius = 15 } = req.query;
-        let query = { status: 'verified' };
+        let query = { status: 'verified', isOnline: true };
 
         if (lat && lng) {
             query.location = {
@@ -96,7 +109,7 @@ const getFeaturedProviders = async (req, res) => {
 const getPublicProviders = async (req, res) => {
     try {
         const { category, search, lat, lng, radius = 15 } = req.query;
-        let query = { status: 'verified' };
+        let query = { status: 'verified', isOnline: true };
 
         // Geolocation filtering
         if (lat && lng) {
@@ -253,5 +266,6 @@ module.exports = {
     getPublicCategoryByName,
     getPublicCoupons,
     validateCoupon,
-    verifyReferralCode
+    verifyReferralCode,
+    getPublicZones
 };

@@ -8,6 +8,7 @@ import EmergencyButton from "@/modules/user/components/EmergencyButton";
 import SearchBar from "@/modules/user/components/SearchBar";
 import CategoryGrid from "@/modules/user/components/CategoryGrid";
 import ServiceCard from "@/modules/user/components/ServiceCard";
+import RecentBookingTracker from "@/modules/user/components/RecentBookingTracker";
 import { useAuth } from "@/context/AuthContext";
 import API from "@/lib/api";
 
@@ -156,8 +157,9 @@ const Index = () => {
           </section>
         )}
 
-        {/* Search */}
-        <section className="-mt-8 relative z-40 px-4 sm:px-12">
+        {/* Search & Live Tracking */}
+        <section className="-mt-8 relative z-40 px-4 sm:px-12 space-y-4">
+          <RecentBookingTracker />
           <SearchBar onSearch={handleSearch} />
         </section>
 

@@ -116,9 +116,17 @@ const ProviderWallet = () => {
                     <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${txn.type === 'credit' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                       {txn.type === 'credit' ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{txn.title}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-foreground">{txn.title}</p>
+                        {txn.description && (
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${txn.description.includes('Free') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40'}`}>
+                            {txn.description.includes('Free') ? 'Free Service' : 'Commission Applied'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{new Date(txn.createdAt).toLocaleDateString()} • {txn._id.slice(-6).toUpperCase()}</p>
+                      {txn.description && <p className="text-[9px] text-muted-foreground mt-1 italic">{txn.description}</p>}
                     </div>
                   </div>
                   <div className={`font-black text-sm text-right ${txn.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>

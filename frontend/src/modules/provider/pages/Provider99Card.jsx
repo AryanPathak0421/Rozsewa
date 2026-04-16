@@ -1,29 +1,45 @@
+import { useState, useEffect } from "react";
 import ProviderTopNav from "@/modules/provider/components/ProviderTopNav";
 import ProviderBottomNav from "@/modules/provider/components/ProviderBottomNav";
-import { CreditCard, ShieldCheck, Gift, CheckCircle, Copy, Share2, Award, ArrowUpRight } from "lucide-react";
-import { useState } from "react";
+import { CreditCard, ShieldCheck, Gift, CheckCircle, Copy, Share2, Award, ArrowUpRight, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import API from "@/lib/api";
 
 const Provider99Card = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [provider, setProvider] = useState(null);
   const [copied, setCopied] = useState(false);
-  const vendorCode = user?.vendorCode || "RSVND----";
-  const commissionRemaining = user?.freeServicesLeft || 0;
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const { data } = await API.get("/provider/profile");
+      setProvider(data);
+    } catch (err) {
+      toast({ title: "Failed to load plan", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(vendorCode);
+    const code = provider?.vendorCode || "";
+    navigator.clipboard.writeText(code);
     setCopied(true);
     toast({ title: "Code Copied!", description: "Vendor referral code copied to clipboard." });
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleShare = () => {
+    const code = provider?.vendorCode || "";
     if (navigator.share) {
       navigator.share({
         title: 'Join RozSewa as a Provider!',
-        text: `Register on RozSewa using my referral code ${vendorCode} and get 3 commission-free bookings!`,
+        text: `Register on RozSewa using my referral code ${code} and get 3 commission-free bookings!`,
         url: window.location.origin + '/provider/register',
       });
     } else {
@@ -31,94 +47,111 @@ const Provider99Card = () => {
     }
   };
 
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-background">
+      <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+    </div>
+  );
+
+  const vendorCode = provider?.vendorCode || "RSVND----";
+  const commissionRemaining = provider?.freeServicesLeft || 0;
+  const planExpiry = provider?.planExpiry ? new Date(provider.planExpiry).toLocaleDateString("en-IN", {
+    day: "numeric", month: "long", year: "numeric"
+  }) : "Lifetime";
+
   return (
     <div className="min-h-[100dvh] bg-background pb-20 md:pb-8">
       <ProviderTopNav />
       <main className="container max-w-4xl px-4 py-6 md:py-8 space-y-6 md:space-y-8">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground">RozSewa 99 Card Center</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">Manage your active subscription and referral benefits.</p>
+        <div className="text-left">
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase">RozSewa 99 Card Center</h1>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Manage your active subscription and referral benefits.</p>
         </div>
 
         {/* Card Status */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-800 p-6 md:p-8 text-white shadow-xl shadow-emerald-600/20">
-          <div className="absolute top-0 right-0 -mr-10 -mt-10 h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 -ml-10 -mb-10 h-32 w-32 rounded-full bg-black/10 blur-2xl"></div>
+        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-600 to-teal-800 p-8 text-white shadow-2xl shadow-emerald-500/20 border border-white/10">
+          <div className="absolute top-0 right-0 -mr-10 -mt-10 h-48 w-48 rounded-full bg-white/15 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 -ml-12 -mb-12 h-40 w-40 rounded-full bg-black/20 blur-2xl"></div>
 
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-bold text-emerald-50 border border-emerald-400/30 backdrop-blur-sm">
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Pro Member
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+            <div className="space-y-4 text-left">
+              <div className="inline-flex items-center rounded-full bg-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white border border-white/30 backdrop-blur-md">
+                <ShieldCheck className="mr-2 h-4 w-4" /> {provider?.planType || 'Pro'} Member
               </div>
-              <h2 className="text-2xl md:text-3xl font-black tracking-tight">Active Plan</h2>
-              <p className="text-sm text-emerald-100/90 font-medium">Valid until: <strong className="text-white">Mar 25, 2027</strong></p>
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase leading-none">Subscription Active</h2>
+                <p className="text-sm text-emerald-100 font-bold mt-3 opacity-90">Valid until: <span className="text-white font-black bg-white/10 px-2 py-0.5 rounded-lg">{planExpiry}</span></p>
+              </div>
             </div>
 
-            <button className="w-full md:w-auto shrink-0 rounded-xl bg-white px-6 py-3 text-sm font-extrabold text-emerald-700 shadow-sm transition hover:bg-emerald-50">
+            <button className="w-full md:w-auto shrink-0 rounded-2xl bg-white px-8 py-4 text-xs font-black uppercase tracking-widest text-emerald-700 shadow-xl transition-all hover:scale-105 active:scale-95">
               Renew Plan
             </button>
           </div>
         </section>
 
         {/* Referral System */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <div className="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/10 p-5 md:p-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 rounded-[32px] border border-emerald-500/10 bg-emerald-50/30 dark:bg-emerald-900/10 p-6 md:p-8 shadow-sm">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/50 text-emerald-700 dark:text-emerald-400">
-                <Gift className="h-6 w-6" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600">
+                <Gift className="h-7 w-7" />
               </div>
-              <div>
-                <h3 className="text-lg font-black text-emerald-900 dark:text-emerald-400">Refer & Earn 100% Commission</h3>
-                <p className="text-xs md:text-sm text-emerald-700/80 dark:text-emerald-500/80 mt-1 leading-relaxed">
-                  Refer another vendor using your code. If they purchase the 99 Card, you both earn <strong className="text-emerald-800 dark:text-emerald-300">3 Commission-Free bookings!</strong>
+              <div className="text-left">
+                <h3 className="text-xl font-black text-emerald-900 dark:text-emerald-400 uppercase tracking-tight">Refer & Earn Benefits</h3>
+                <p className="text-xs md:text-sm text-emerald-700 dark:text-emerald-500/80 mt-2 font-medium leading-relaxed">
+                  Refer another vendor using your code. When they join, you both earn <strong className="text-emerald-800 dark:text-emerald-300 font-black">3 Commission-Free bookings!</strong>
                 </p>
               </div>
             </div>
 
-            <div className="mt-5 rounded-xl border border-emerald-200/60 bg-white dark:bg-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Your Referral Code</span>
-                <div className="text-2xl font-black font-mono tracking-widest text-emerald-700 dark:text-emerald-400">{vendorCode}</div>
+            <div className="mt-8 rounded-2xl border border-emerald-200/50 bg-white dark:bg-card p-5 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+              <div className="text-left w-full sm:w-auto">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground block mb-2 opacity-60">Your Exclusive Code</span>
+                <div className="text-2xl font-black font-mono tracking-[0.3em] text-emerald-700 dark:text-emerald-400">{vendorCode}</div>
               </div>
-              <div className="flex w-full sm:w-auto gap-2">
-                <button onClick={handleCopy} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-xs font-bold text-foreground shadow-sm hover:bg-muted transition">
+              <div className="flex w-full sm:w-auto gap-3">
+                <button onClick={handleCopy} className="flex-1 sm:flex-none h-14 flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-6 text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted transition-all active:scale-95">
                   {copied ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
                 </button>
-                <button onClick={handleShare} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition">
+                <button onClick={handleShare} className="flex-1 sm:flex-none h-14 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95">
                   <Share2 className="h-4 w-4" /> Share
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-sm flex flex-col justify-center items-center text-center">
-            <div className="mb-3 rounded-full bg-blue-50 dark:bg-blue-900/20 p-4 relative">
-              <Award className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white border-2 border-white dark:border-card">{commissionRemaining}</span>
+          <div className="rounded-[32px] border border-border bg-card p-8 shadow-sm flex flex-col justify-center items-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+            <div className="mb-4 rounded-3xl bg-blue-50 dark:bg-blue-900/20 p-6 relative group-hover:scale-110 transition-transform duration-500">
+              <Award className="h-10 w-10 text-blue-600 dark:text-blue-400" />
+              <span className="absolute -top-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white border-2 border-white dark:border-card">{commissionRemaining}</span>
             </div>
-            <h3 className="text-lg font-black text-foreground">Zero Commission</h3>
-            <p className="text-xs text-muted-foreground mt-1">You have <strong className="text-foreground">{commissionRemaining} orders</strong> left with 0% platform fee!</p>
-            <button className="mt-4 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-700">
-              View Policy <ArrowUpRight className="h-3 w-3" />
+            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Zero Commission</h3>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Available for next <strong className="text-emerald-600 font-black">{commissionRemaining} bookings!</strong></p>
+            <button className="mt-6 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 hover:text-blue-700 transition-colors">
+              Benefit Policy <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
         {/* Benefits Breakdown */}
         <section>
-          <h3 className="text-sm font-bold tracking-wider uppercase text-muted-foreground mb-4">Included in your 99 Card</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+          <h3 className="text-[10px] font-black tracking-[0.3em] uppercase text-muted-foreground mb-6 text-left opacity-60">Inclusive Privileges</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { title: "Verified Vendor Badge", desc: "Gain customer trust with a verified checkmark." },
               { title: "Priority Visibility", desc: "Rank higher in search results." },
               { title: "24/7 Support", desc: "Direct priority line to RozSewa admin." },
               { title: "Business Tools", desc: "Access to advanced analytics and staff management." }
             ].map((item, i) => (
-              <div key={i} className="flex gap-3 rounded-xl border border-border bg-card p-4">
-                <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
-                <div>
-                  <h4 className="text-sm font-bold text-foreground">{item.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+              <div key={i} className="flex gap-4 rounded-2xl border border-border bg-card p-5 hover:border-emerald-500/30 transition-all group shadow-sm">
+                <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 group-hover:scale-110 transition-all">
+                  <CheckCircle className="h-5 w-5 shrink-0" />
+                </div>
+                <div className="text-left">
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-tight leading-none mb-1.5">{item.title}</h4>
+                  <p className="text-[11px] text-muted-foreground font-medium">{item.desc}</p>
                 </div>
               </div>
             ))}

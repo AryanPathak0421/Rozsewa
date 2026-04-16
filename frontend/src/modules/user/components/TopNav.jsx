@@ -18,9 +18,38 @@ const navLinks = [
 
 const TopNav = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [city, setCity] = useState(() => localStorage.getItem("rozsewa_user_city") || "Lucknow");
-  const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const [city, setCity] = useState(() => {
+    if (user && user.city) return user.city;
+    return localStorage.getItem("rozsewa_user_city") || "Lucknow";
+  });
+  const [dynamicCities, setDynamicCities] = useState(["Lucknow", "Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Kolkata", "Chennai"]);
+
+  useEffect(() => {
+    fetchZones();
+  }, []);
+
+  const fetchZones = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/public/zones`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setDynamicCities(data.map(z => z.name));
+      }
+    } catch (err) {
+      console.log("Error fetching zones", err);
+    }
+  };
+
+  // Sync city when user logs in
+  useEffect(() => {
+    if (user && user.city) {
+      setCity(user.city);
+      localStorage.setItem("rozsewa_user_city", user.city);
+    }
+  }, [user]);
+
+  const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -174,7 +203,7 @@ const TopNav = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
-                {cities.map((c) => (
+                {dynamicCities.map((c) => (
                   <button key={c} onClick={() => handleCitySelect(c)}
                     className={`flex items-center gap-3 rounded-2xl border-2 px-5 py-4 text-sm font-black transition-all ${city.includes(c) ? "border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]" : "border-white/5 bg-white/[0.02] text-white/90 hover:border-white/20 hover:bg-white/5"
                       }`}>

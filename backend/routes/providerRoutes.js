@@ -7,10 +7,12 @@ const {
     updateProviderStatus,
     updateProviderProfile,
     getProviderStats,
-    checkProviderExistence
+    checkProviderExistence,
+    uploadDocument
 } = require('../controllers/providerController');
 const { getPublicCategories } = require('../controllers/categoryController');
 const { protect } = require('../middleware/authMiddleware');
+const { upload } = require('../config/cloudinary');
 
 // Public routes
 router.post('/register', registerProvider);
@@ -23,5 +25,6 @@ router.get('/profile', protect, getProviderProfile);
 router.put('/profile', protect, updateProviderProfile);
 router.get('/stats', protect, getProviderStats);
 router.patch('/status', protect, updateProviderStatus);
+router.post('/documents', protect, upload.single('document'), uploadDocument);
 
 module.exports = router;

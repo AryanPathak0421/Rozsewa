@@ -9,10 +9,13 @@ import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import API from "@/lib/api";
+import { useSocket } from "@/context/SocketContext";
+import IncomingRequestModal from "@/modules/provider/components/IncomingRequestModal";
 
 const ProviderDashboard = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { socket, incomingRequest, setIncomingRequest } = useSocket();
   const [isOnline, setIsOnline] = useState(user?.isOnline ?? true);
   const [isEmergencyActive, setIsEmergencyActive] = useState(user?.isEmergencyEnabled ?? false);
 
@@ -156,6 +159,13 @@ const ProviderDashboard = () => {
         <section><RecentBookingsList /></section>
       </main>
       <ProviderBottomNav />
+
+      {incomingRequest && (
+        <IncomingRequestModal
+          request={incomingRequest}
+          onAction={() => setIncomingRequest(null)}
+        />
+      )}
     </div>
   );
 };

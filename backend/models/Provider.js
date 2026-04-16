@@ -54,6 +54,16 @@ const providerSchema = mongoose.Schema({
         type: String, // Employee ID or Vendor Code
         default: null
     },
+    documents: [
+        {
+            id: { type: String }, // 'aadhaar', 'pan', etc.
+            url: { type: String },
+            status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
+            fileName: { type: String },
+            uploadedAt: { type: Date, default: Date.now }
+        }
+    ],
+    kycVerified: { type: Boolean, default: false },
     freeServicesLeft: {
         type: Number,
         default: 3
@@ -61,6 +71,15 @@ const providerSchema = mongoose.Schema({
     commissionRate: {
         type: Number,
         default: 10 // Percentage, can be set by admin
+    },
+    planType: {
+        type: String,
+        enum: ['standard', 'pro', 'premium'],
+        default: 'pro'
+    },
+    planExpiry: {
+        type: Date,
+        default: () => new Date(+new Date() + 30 * 24 * 60 * 60 * 1000) // Default 30 days from now
     },
     joinedDate: { type: Date, default: Date.now }
 }, {

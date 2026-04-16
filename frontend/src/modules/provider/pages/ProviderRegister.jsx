@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import * as LucideIcons from "lucide-react";
@@ -30,9 +30,6 @@ const ProviderRegister = () => {
   const { toast } = useToast();
   const { signup } = useAuth();
   const [step, setStep] = useState(1);
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
   const [coords, setCoords] = useState([0, 0]);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,8 +55,22 @@ const ProviderRegister = () => {
     serviceRadius: "5",
     registrationType: "individual",
     referredBy: "",
+    address: "",
+    city: "",
+    state: "",
     password: "",
   });
+
+  const formDataRef = useRef(formData);
+  const coordsRef = useRef(coords);
+
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  useEffect(() => {
+    coordsRef.current = coords;
+  }, [coords]);
 
   const [referredByName, setReferredByName] = useState("");
   const [verifyingReferral, setVerifyingReferral] = useState(false);
@@ -136,9 +147,12 @@ const ProviderRegister = () => {
             if (data && data.display_name) {
               const addr = data.address || {};
               setCoords([longitude, latitude]);
-              setAddress(data.display_name);
-              setCity(addr.city || addr.town || addr.village || "");
-              setState(addr.state || "");
+              setFormData(prev => ({
+                ...prev,
+                address: data.display_name,
+                city: addr.city || addr.town || addr.village || "",
+                state: addr.state || ""
+              }));
             }
           } catch (err) {
             console.error("Error fetching address:", err);
@@ -207,18 +221,19 @@ const ProviderRegister = () => {
       const { data: verifyRes } = await API.post("/payment/verify", response);
       if (verifyRes.success) {
         const finalData = {
-          ...formData,
-          address,
-          city,
-          state,
-          location: { type: 'Point', coordinates: coords }
+          ...formDataRef.current,
+          location: { type: 'Point', coordinates: coordsRef.current }
         };
         const signupRes = await signup(finalData, 'provider');
         if (signupRes.success) {
           setGeneratedCode(signupRes.data.vendorCode);
           setStep(9);
         } else {
-          toast({ title: "Signup Failed", description: signupRes.error, variant: "destructive" });
+          toast({
+            title: "Signup Failed",
+            description: `${signupRes.error} (Data: ${formDataRef.current.city}, ${formDataRef.current.state})`,
+            variant: "destructive"
+          });
         }
       } else {
         toast({ title: "Payment Failed", description: "Verification mismatch.", variant: "destructive" });
@@ -233,6 +248,13 @@ const ProviderRegister = () => {
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!window.Razorpay) return;
+
+    // Last minute validation
+    if (!formData.city || !formData.state || !formData.address) {
+      toast({ title: "Details Missing", description: "Please go back and fill your address details.", variant: "destructive" });
+      setStep(5);
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -408,8 +430,8 @@ const ProviderRegister = () => {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setAddress("")}
-                        className={`flex-1 py-3 rounded-2xl border-2 text-[10px] font-black uppercase transition-all tracking-widest ${!address ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-inner' : 'border-border text-gray-400 opacity-60'}`}
+                        onClick={() => setFormData(prev => ({ ...prev, address: "", city: "", state: "" }))}
+                        className={`flex-1 py-3 rounded-2xl border-2 text-[10px] font-black uppercase transition-all tracking-widest ${!formData.address ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-inner' : 'border-border text-gray-400 opacity-60'}`}
                       >
                         Enter Manually
                       </button>
@@ -426,11 +448,11 @@ const ProviderRegister = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">State</label>
-                      <input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Maharashtra" />
+                      <input type="text" value={formData.state} onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Maharashtra" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">City</label>
-                      <input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Mumbai" />
+                      <input type="text" value={formData.city} onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))} className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs" placeholder="Mumbai" />
                     </div>
                   </div>
 
@@ -438,8 +460,8 @@ const ProviderRegister = () => {
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Detailed Address</label>
                     <textarea
                       required
-                      value={address}
-                      onChange={e => setAddress(e.target.value)}
+                      value={formData.address}
+                      onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       className="w-full rounded-2xl border border-border bg-background p-4 font-bold text-xs focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all placeholder:opacity-50"
                       rows={3}
                       placeholder="Building, Street, Landmark..."

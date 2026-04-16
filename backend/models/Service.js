@@ -12,7 +12,8 @@ const serviceSchema = mongoose.Schema({
     pricing: {
         basic: { type: Number, required: true },
         standard: { type: Number },
-        premium: { type: Number }
+        premium: { type: Number },
+        express: { type: Number, default: 0 }
     },
     duration: { type: String, default: '30 min' },
     visible: { type: Boolean, default: true },

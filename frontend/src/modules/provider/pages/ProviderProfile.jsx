@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ProviderTopNav from "@/modules/provider/components/ProviderTopNav";
 import ProviderBottomNav from "@/modules/provider/components/ProviderBottomNav";
-import { User, Store, MapPin, Phone, ShieldCheck, Camera, LogOut, Sparkles } from "lucide-react";
+import { User, Store, MapPin, Phone, ShieldCheck, Camera, LogOut, Sparkles, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import API from "@/lib/api";
@@ -58,20 +58,25 @@ const ProviderProfile = () => {
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result;
-        setProfileData({ ...profileData, profileImage: base64 });
-        try {
-          await API.put("/provider/profile", { profileImage: base64 });
-          toast({ title: "Image Uploaded" });
-        } catch (err) {
-          toast({ title: "Upload Failed", variant: "destructive" });
-        }
-      };
-      reader.readAsDataURL(file);
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+      try {
+        const { data } = await API.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        setProfileData({ ...profileData, profileImage: data.url });
+        await API.put("/provider/profile", { profileImage: data.url });
+        toast({ title: "Image Uploaded", description: "Profile photo updated." });
+      } catch (err) {
+        toast({ title: "Upload Failed", variant: "destructive" });
+      } finally {
+        setUploading(false);
+      }
     }
   };
+
+  const [uploading, setUploading] = useState(false);
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-6">
@@ -81,7 +86,9 @@ const ProviderProfile = () => {
           <div className="relative">
             <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-emerald-100 text-3xl font-bold text-emerald-700 shadow-sm">
-              {profileData.profileImage ? <img src={profileData.profileImage} alt="Profile" className="h-full w-full object-cover" /> : profileData.shopName?.split(' ').map(n => n[0]).join('').toUpperCase() || "RS"}
+              {uploading ? <Loader2 className="h-8 w-8 animate-spin text-emerald-600" /> : (
+                profileData.profileImage ? <img src={profileData.profileImage} alt="Profile" className="h-full w-full object-cover" /> : profileData.shopName?.split(' ').map(n => n[0]).join('').toUpperCase() || "RS"
+              )}
             </div>
             <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 rounded-full bg-background p-2 text-emerald-600 shadow-md transition-transform hover:scale-110"><Camera className="h-4 w-4" /></button>
           </div>
@@ -160,7 +167,17 @@ const ProviderProfile = () => {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-6 shadow-sm"><div className="flex items-center justify-between"><div><h3 className="font-bold text-emerald-800">Pro Plan - Active</h3><p className="text-xs text-emerald-600/80 mt-1">Valid till 24 Dec 2026</p></div><button className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-emerald-700 transition">Upgrade</button></div></section>
+        <section className="rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <h3 className="font-black uppercase text-[11px] tracking-widest text-emerald-800">{user?.planType || 'Pro'} Plan - Active</h3>
+              <p className="text-[10px] font-bold text-emerald-600/80 mt-1 uppercase tracking-widest">
+                Valid till {user?.planExpiry ? new Date(user.planExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '24 Dec 2026'}
+              </p>
+            </div>
+            <button className="rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition">Upgrade</button>
+          </div>
+        </section>
         <button onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 py-4 font-bold text-destructive hover:bg-destructive hover:text-white transition-all"><LogOut className="h-5 w-5" /> Sign Out</button>
       </main>
       <ProviderBottomNav />
